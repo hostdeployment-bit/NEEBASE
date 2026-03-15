@@ -5,59 +5,64 @@ module.exports = {
     alias: ["help", "list"],
     desc: "Displays the categorized bot command list",
     async execute(conn, m, { pushname, isOwner }) {
-        // Optimized Uptime Calculation
+        // Optimized Uptime & Date
         const uptime = process.uptime();
-        const timestr = [
-            Math.floor(uptime / 3600),
-            Math.floor((uptime % 3600) / 60),
-            Math.floor(uptime % 60)
-        ].map(v => v.toString().padStart(2, '0'));
+        const hours = Math.floor(uptime / 3600).toString().padStart(2, '0');
+        const minutes = Math.floor((uptime % 3600) / 60).toString().padStart(2, '0');
+        const seconds = Math.floor(uptime % 60).toString().padStart(2, '0');
+        
+        // Count total commands
+        const totalCommands = global.plugins ? global.plugins.filter(p => p.cmd).length : 0;
 
-        // Header with cleaner UI
-        let menuText = `╭═══〔 *POPKID-MD* 〕═══⊷\n`;
-        menuText += `┃ 👤 *User:* ${pushname}\n`;
-        menuText += `┃ 🕒 *Uptime:* ${timestr[0]}h ${timestr[1]}m ${timestr[2]}s\n`;
-        menuText += `┃ 🔑 *Prefix:* [ ${config.PREFIX} ]\n`;
-        menuText += `┃ 🌍 *Mode:* ${config.MODE}\n`;
-        menuText += `╰══════════════════⊷\n\n`;
+        // --- Styled Header Section ---
+        let menuText = `╭━━━〔 𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐕𝟑 〕━━━⊷\n`;
+        menuText += `┃ 👤 𝚄𝚜𝚎𝚛: ${pushname}\n`;
+        menuText += `┃ ⏳ 𝚄𝚙𝚝𝚒𝚖𝚎: ${hours}𝚑 ${minutes}𝚖 ${seconds}𝚜\n`;
+        menuText += `┃ 🤖 𝙲𝚘𝚖𝚖𝚊𝚗𝚍𝚜: ${totalCommands}\n`;
+        menuText += `┃ 🔑 𝙿𝚛𝚎𝚏𝚒𝚡: [ ${config.PREFIX} ]\n`;
+        menuText += `┃ 🌍 𝙼𝚘𝚍𝚎: ${config.MODE}\n`;
+        menuText += `╰━━━━━━━━━━━━━━━━━━⊷\n\n`;
 
-        // Organize Commands Efficiently
+        // --- Organize Commands by Category ---
         const categories = {};
         global.plugins.forEach((plugin) => {
             if (!plugin.cmd) return;
-            const cat = (plugin.category || "OTHERS").toUpperCase();
+            const cat = (plugin.category || "General").toUpperCase();
             if (!categories[cat]) categories[cat] = [];
             categories[cat].push(plugin.cmd);
         });
 
-        // Build Categorized List using Array joining (Better performance)
-        const sortedCategories = Object.keys(categories).sort();
-        const categorySections = sortedCategories.map(cat => {
-            const cmds = categories[cat]
-                .sort()
-                .map(cmd => `  ◦ ${config.PREFIX}${cmd}`)
-                .join("\n");
-            return `┌──『 *${cat}* 』\n${cmds}\n└───────────────⊷`;
+        // --- Build Categorized List ---
+        const categoryKeys = Object.keys(categories).sort();
+        
+        categoryKeys.forEach((cat) => {
+            menuText += `╔══✪  『 *${cat}* 』\n`;
+            
+            const sortedCmds = categories[cat].sort();
+            sortedCmds.forEach((cmd, index) => {
+                const isLast = index === sortedCmds.length - 1;
+                menuText += `${isLast ? "╚" : "╠"} ➩ ${config.PREFIX}${cmd}\n`;
+            });
+            menuText += `\n`;
         });
 
-        menuText += categorySections.join("\n\n");
-        
-        menuText += `\n\n⚙️ *SYSTEM*\n`;
-        menuText += `  ◦ ${config.PREFIX}ping\n`;
-        menuText += `  ◦ ${config.PREFIX}runtime\n\n`;
-        menuText += `*Created by Popkid Kenya* 🇰🇪`;
+        // --- Footer ---
+        menuText += `✨ 𝚂𝚢𝚜𝚝𝚎𝚖 𝙸𝚗𝚏𝚘:\n`;
+        menuText += `⚡ 𝙿𝚒𝚗𝚐: ${Date.now() - m.messageTimestamp * 1000}𝚖𝚜\n`;
+        menuText += `🇰🇪 *ᴘᴏᴘᴋɪᴅ ᴋᴇɴʏᴀ*`;
 
-        // Sending with Enhanced Context
+        // Sending as Text with External Ad Reply (No big image)
         await conn.sendMessage(m.from, { 
-            image: { url: "https://files.catbox.moe/j9ia5c.png" }, 
-            caption: menuText,
+            text: menuText,
             contextInfo: {
                 mentionedJid: [m.sender],
+                forwardingScore: 999,
+                isForwarded: true,
                 externalAdReply: {
-                    title: "POPKID-MD V3",
-                    body: "The Best WhatsApp Bot Experience",
+                    title: "ᴘᴏᴘᴋɪᴅ-ᴍᴅ ᴀᴜᴛᴏᴍᴀᴛɪᴏɴ",
+                    body: "sᴛᴀᴛᴜs: ᴏɴʟɪɴᴇ & ᴀᴄᴛɪᴠᴇ",
                     thumbnailUrl: "https://files.catbox.moe/j9ia5c.png",
-                    sourceUrl: "https://github.com/popkidmd",
+                    sourceUrl: "https://whatsapp.com/channel/0029VajmS0S47Xe36JUn9l1D",
                     mediaType: 1,
                     renderLargerThumbnail: true
                 }
