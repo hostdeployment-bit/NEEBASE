@@ -1,4 +1,5 @@
 const config = require("../config");
+const os = require("os");
 
 module.exports = {
     cmd: "menu",
@@ -11,8 +12,8 @@ module.exports = {
         const minutes = Math.floor((uptime % 3600) / 60).toString().padStart(2, '0');
         const seconds = Math.floor(uptime % 60).toString().padStart(2, '0');
         
-        // 2. Count total commands from the global.plugins Map
         const totalCommands = global.plugins.size;
+        const ping = Date.now() - (m.messageTimestamp * 1000);
 
         // --- Styled Header Section ---
         let menuText = `╭━━━〔 𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 〕━⊷\n`;
@@ -23,7 +24,7 @@ module.exports = {
         menuText += `┃ 🌍 𝙼𝚘𝚍𝚎: ${config.MODE}\n`;
         menuText += `╰━━━━━━━━━━━━━━━━⊷\n\n`;
 
-        // 3. Organize Commands by Category
+        // 2. Organize Commands by Category
         const categories = {};
         global.plugins.forEach((plugin) => {
             if (!plugin.cmd) return;
@@ -32,12 +33,11 @@ module.exports = {
             categories[cat].push(plugin.cmd);
         });
 
-        // 4. Build Categorized List
+        // 3. Build Categorized List
         const categoryKeys = Object.keys(categories).sort();
         
         categoryKeys.forEach((cat) => {
             menuText += `╔══✪  『 *${cat}* 』\n`;
-            
             const sortedCmds = categories[cat].sort();
             sortedCmds.forEach((cmd, index) => {
                 const isLast = index === sortedCmds.length - 1;
@@ -47,21 +47,19 @@ module.exports = {
         });
 
         // --- Footer ---
-        const ping = Date.now() - (m.messageTimestamp * 1000);
         menuText += `✨ 𝚂𝚢𝚜𝚝𝚎𝚖 𝙸𝚗𝚏𝚘:\n`;
-        menuText += `⚡ 𝙿𝚒𝚗𝚐: ${ping}𝚖𝚜\n`;
+        menuText += `⚡ 𝙿𝚒𝚗𝚐: ${ping < 0 ? '0' : ping}𝚖𝚜\n`;
         menuText += `🇰🇪 *ᴘᴏᴘᴋɪᴅ ᴋᴇɴʏᴀ*`;
 
-        // 5. Sending as Text with External Ad Reply
+        // 4. Sending as Text with CLEAN ContextInfo (Works for everyone)
         await conn.sendMessage(m.from, { 
             text: menuText,
             contextInfo: {
                 mentionedJid: [m.sender],
-                forwardingScore: 999,
-                isForwarded: true,
+                // Removed forwardingScore and isForwarded to prevent spam-blocking
                 externalAdReply: {
                     title: "ᴘᴏᴘᴋɪᴅ-ᴍᴅ ᴀᴜᴛᴏᴍᴀᴛɪᴏɴ",
-                    body: `Latency: ${ping}ms | Status: Active`,
+                    body: `Master Engine Active | Latency: ${ping < 0 ? '0' : ping}ms`,
                     thumbnailUrl: "https://files.catbox.moe/j9ia5c.png",
                     sourceUrl: "https://whatsapp.com/channel/0029VacgxK96hENmSRMRxx1r",
                     mediaType: 1,
