@@ -35,17 +35,20 @@ module.exports = {
             }, { quoted: m });
 
             // 4. Fetch Download Link from API
-            // Note: Using the specific endpoint from your snippet logic
+            // Using the ytdl3 endpoint which usually returns { status: 200, downloadLink: "url" }
             const apiURL = `${BASE_URL}/dipto/ytDl3?link=${encodeURIComponent(video.url)}&format=mp3`;
-            const { data } = await axios.get(apiURL);
+            const response = await axios.get(apiURL);
+            const data = response.data;
             
-            const downloadUrl = data.downloadLink || (data.result && data.result.download);
+            // Flexible link check for different API versions
+            const downloadUrl = data.downloadLink || (data.result && data.result.download) || (data.result && data.result.url);
 
             if (!downloadUrl) {
-                return m.reply("❌ Failed to fetch the audio. The API might be down.");
+                return m.reply("❌ Failed to fetch the audio. The API might be down or the file is restricted.");
             }
 
             // 5. Send the Audio File
+            // We use 'audio' key and ensure mimetype is correct
             await conn.sendMessage(m.from, { 
                 audio: { url: downloadUrl }, 
                 mimetype: "audio/mpeg",
@@ -57,7 +60,7 @@ module.exports = {
 
         } catch (e) {
             console.error("Play Plugin Error:", e);
-            m.reply("⚠️ An error occurred. Please try again later.");
+            m.reply("⚠️ API Error or Network timeout. Please try again with a different song name.");
         }
     }
 };
