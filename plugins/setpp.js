@@ -1,44 +1,52 @@
+const { getContentType } = require("@whiskeysockets/baileys");
+
 module.exports = {
     cmd: "setpp",
     alias: ["setbotpp"],
-    desc: "Change Bot Profile Picture (Raw Mode)",
+    desc: "Force Change Bot PP",
     category: "owner",
     isOwner: true,
     async execute(conn, m) {
         try {
-            // 1. Dig into the raw message structure
-            const quoted = m.quoted ? m.quoted : m;
+            // 1. Manually extract the quoted message from the raw source
+            const messageContent = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
             
-            // Check every possible location for an image indicator
-            const isImage = 
-                m.type === 'imageMessage' || 
-                quoted.type === 'imageMessage' || 
-                (quoted.msg && quoted.msg.mimetype && quoted.msg.mimetype.includes('image')) ||
-                m.msg?.mimetype?.includes('image');
+            if (!messageContent) {
+                return m.reply("❌ Please reply to an image!");
+            }
+
+            // 2. Look for the image data inside the raw object
+            const type = getContentType(messageContent);
+            const isImage = type === 'imageMessage' || 
+                            messageContent?.imageMessage || 
+                            messageContent?.documentMessage?.mimetype?.includes('image');
 
             if (!isImage) {
-                return m.reply("❌ Bot still can't 'see' the image. Try this: Send the photo to the bot, THEN reply to it.");
+                return m.reply("❌ The bot sees the reply but doesn't find a photo. Make sure you are replying to a Gallery image.");
             }
 
             await m.react("⏳");
 
-            // 2. Direct download from the source
-            const media = await quoted.download().catch(() => null);
+            // 3. Use the raw download provider
+            const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
+            const imageMsg = messageContent.imageMessage || messageContent.documentMessage;
             
-            if (!media) {
-                return m.reply("❌ Download failed. The image data is missing from the server.");
+            const stream = await downloadContentFromMessage(imageMsg, 'image');
+            let buffer = Buffer.from([]);
+            for await (const chunk of stream) {
+                buffer = Buffer.concat([buffer, chunk]);
             }
 
-            // 3. Apply to Profile
+            // 4. Force Update
             const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-            await conn.updateProfilePicture(botJid, media);
+            await conn.updateProfilePicture(botJid, buffer);
             
             await m.react("✅");
-            m.reply("✅ *POPKID-MD* Profile Picture updated!");
+            m.reply("✅ *POPKID-MD* PP successfully forced!");
 
         } catch (e) {
-            console.error("SetPP Critical Error:", e);
-            m.reply(`❌ System Error: ${e.message}`);
+            console.error("Critical SetPP Error:", e);
+            m.reply(`❌ Internal Error: ${e.message}`);
         }
     }
 };
