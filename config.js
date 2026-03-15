@@ -6,6 +6,10 @@ module.exports = {
     AUTO_READ_STATUS: process.env.AUTO_READ_STATUS || "true",
     AUTO_REACT_STATUS: process.env.AUTO_REACT_STATUS || "true",
     AUTO_BIO: process.env.AUTO_BIO || "true",
-    NON_PREFIX: process.env.NON_PREFIX || "true", // Added this for Non-Prefix support
-    MODE: process.env.MODE || "public" 
+    NON_PREFIX: process.env.NON_PREFIX || "true",
+    MODE: process.env.MODE || "public",
+    ALWAYS_ONLINE: process.env.ALWAYS_ONLINE || "true",
+    AUTO_TYPING: process.env.AUTO_TYPING || "true",
+    AUTO_RECORDING: process.env.AUTO_RECORDING || "true",
+    AUTO_REACT: process.env.AUTO_REACT || "true"
 }
