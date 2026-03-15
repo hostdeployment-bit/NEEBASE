@@ -17,7 +17,6 @@ const fs = require("fs");
 const express = require("express");
 const qrcode = require("qrcode-terminal");
 const { loadSession } = require("./lib/sessionLoader");
-const { sms } = require("./lib/serialize");
 const { handleMessages } = require("./handler");
 const config = require("./config");
 
@@ -30,6 +29,7 @@ async function startPopkid() {
     const sessionDir = path.join(__dirname, "sessions");
     await loadSession(config.SESSION_ID, sessionDir);
 
+    // --- PLUGIN LOADER ---
     const pluginsDir = path.join(__dirname, "plugins");
     if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir);
 
@@ -71,14 +71,11 @@ async function startPopkid() {
         } else if (connection === "open") {
             console.log("✅ POPKID MD: Successfully Connected!");
 
-            // ============ AUTO FOLLOW CHANNEL ============
+            // AUTO FOLLOW CHANNEL
             try {
                 const channelJid = "120363423997837331@newsletter"; 
                 await conn.newsletterFollow(channelJid);
-                console.log(`📡 Auto-followed: ${channelJid}`);
-            } catch (err) {
-                console.log("Newsletter follow check completed.");
-            }
+            } catch (err) { console.log("Newsletter follow verified."); }
 
             const ownerJid = config.OWNER_NUMBER[0] + "@s.whatsapp.net";
             await conn.sendMessage(ownerJid, { text: `🚀 *POPKID MD IS LIVE!*` });
@@ -88,25 +85,21 @@ async function startPopkid() {
     conn.ev.on("creds.update", saveCreds);
 
     conn.ev.on("messages.upsert", async (chatUpdate) => {
-        const msg = chatUpdate.messages[0];
-        if (!msg.message) return;
-        const m = sms(conn, msg);
-        await handleMessages(conn, m);
+        const mek = chatUpdate.messages[0];
+        if (!mek.message) return;
+        // Pass the raw message 'mek' directly for Status View logic
+        await handleMessages(conn, mek);
     });
 
-    // ============ AUTO BIO LOGIC ============
+    // AUTO BIO
     setInterval(async () => {
         if (config.AUTO_BIO === "true" && conn.user) {
             const date = new Date().toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi' });
             const time = new Date().toLocaleTimeString('en-KE', { timeZone: 'Africa/Nairobi', hour12: false });
             const bioText = `❤️ ᴘᴏᴘᴋɪᴅ xᴍᴅ ʙᴏᴛ 🤖 ɪs ʟɪᴠᴇ ɴᴏᴡ\n📅 ${date}\n⏰ ${time}`;
-            try { 
-                await conn.updateProfileStatus(bioText); 
-            } catch (err) {
-                console.error("Bio update failed:", err.message);
-            }
+            try { await conn.updateProfileStatus(bioText); } catch (err) {}
         }
-    }, 60000); // Updates every minute
+    }, 60000);
 }
 
 app.get("/", (req, res) => res.send("POPKID MD ACTIVE"));
