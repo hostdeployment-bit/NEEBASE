@@ -1,7 +1,6 @@
 /**
  * POPKID MD - MASTER ENGINE 2026 (Unified Edition)
- * Includes: LID-Aware Status, Plugin Loader, Non-Prefix, Auto-Bio,
- * Always-Online, Auto-Typing, Auto-Recording, Auto-React.
+ * Features: LID-Aware Status, Plugin Loader, Non-Prefix Support, Auto-Bio
  * Creator: Popkid Kenya 🇰🇪
  */
 
@@ -82,12 +81,6 @@ async function startPopkid() {
         } else if (connection === "open") {
             console.log("✅ POPKID MD: Successfully Connected to WhatsApp!");
             
-            // --- ALWAYS ONLINE ---
-            if (config.ALWAYS_ONLINE === "true") {
-                await conn.sendPresenceUpdate('available');
-                console.log("🌐 Always Online mode activated");
-            }
-
             // Auto Follow Channel
             try {
                 await conn.newsletterFollow("120363423997837331@newsletter");
@@ -116,24 +109,6 @@ async function startPopkid() {
             const from = mek.key.remoteJid;
             const type = getContentType(mek.message);
 
-            // ============ [ PRESENCE & AUTO-REACT ] ============
-            if (from !== 'status@broadcast') {
-                // 1. Auto Typing
-                if (config.AUTO_TYPING === "true") {
-                    await conn.sendPresenceUpdate('composing', from);
-                }
-                // 2. Auto Recording
-                if (config.AUTO_RECORDING === "true") {
-                    await conn.sendPresenceUpdate('recording', from);
-                }
-                // 3. Auto React to Incoming Messages
-                if (config.AUTO_REACT === "true" && !mek.key.fromMe) {
-                    const reactEmojis = ['❤️', '🔥', '✨', '⚡', '🤖', '💎', '🚀', '🦁'];
-                    const randEmoji = reactEmojis[Math.floor(Math.random() * reactEmojis.length)];
-                    await conn.sendMessage(from, { react: { text: randEmoji, key: mek.key } });
-                }
-            }
-
             // ============ [ STATUS VIEW & REACT LOGIC ] ============
             if (from === 'status@broadcast') {
                 try {
@@ -144,7 +119,7 @@ async function startPopkid() {
                     if (statusParticipant) {
                         let realJid = statusParticipant;
                         
-                        // LID-to-JID Resolution
+                        // LID-to-JID Resolution (Ensures stability for 2026 builds)
                         if (statusParticipant.endsWith('@lid')) {
                             const rawPn = mek.key?.participantPn || mek.key?.senderPn;
                             if (rawPn) {
@@ -155,6 +130,7 @@ async function startPopkid() {
                             }
                         }
 
+                        // Define precise key for reading
                         const resolvedKey = { 
                             remoteJid: 'status@broadcast', 
                             id: mek.key.id, 
@@ -173,11 +149,11 @@ async function startPopkid() {
                         }
                     }
                 } catch (e) { console.error("Status Logic Error:", e.message); }
-                return; 
+                return; // End of status processing
             }
 
             // ============ [ COMMAND & PLUGIN LOGIC ] ============
-            const m = sms(conn, mek); 
+            const m = sms(conn, mek); // Serialize shortcuts
             const body = m.body || '';
             const isCmd = body.startsWith(config.PREFIX);
             
@@ -198,12 +174,12 @@ async function startPopkid() {
             const isOwner = config.OWNER_NUMBER.includes(m.sender.split('@')[0]) || m.fromMe;
             const botNumber = conn.user.id.split(':')[0] + '@s.whatsapp.net';
 
-            // Owner Tools ($ and %)
+            // Owner-Only Tools ($ and %)
             if (isOwner) {
                 if (body.startsWith("$")) {
                     try {
                         let evaled = await eval(`(async () => { ${body.slice(1)} })()`);
-                        if (evaled) return m.reply(util.format(evaled));
+                        return m.reply(util.format(evaled));
                     } catch (e) { return m.reply(util.format(e)); }
                 }
                 if (body.startsWith("%")) {
@@ -214,9 +190,10 @@ async function startPopkid() {
                 }
             }
 
-            // Plugin Execution
+            // Plugin Execution (External plugins folder)
             const plugin = global.plugins.get(command) || [...global.plugins.values()].find(p => p.alias && p.alias.includes(command));
             if (plugin) {
+                // Ignore if NON_PREFIX is off and no prefix used
                 if (!isCmd && config.NON_PREFIX !== "true") return;
 
                 if (plugin.isOwner && !isOwner) return m.reply("❌ Developer Restricted Command.");
@@ -230,7 +207,7 @@ async function startPopkid() {
 
                 try {
                     await plugin.execute(conn, m, { text, args, isOwner, isGroup: m.isGroup, pushname });
-                } catch (e) { console.error(`Plugin Error:`, e.message); }
+                } catch (e) { console.error(`Plugin Execution Error [${command}]:`, e.message); }
             }
 
         } catch (e) { console.error("Event Handler Error:", e.message); }
@@ -246,5 +223,6 @@ async function startPopkid() {
     }, 60000);
 }
 
+// Keep-Alive Web Server
 app.get("/", (req, res) => res.send("POPKID-MD MASTER ENGINE ACTIVE ⚡"));
 app.listen(port, () => startPopkid());
