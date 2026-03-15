@@ -1,6 +1,7 @@
 /**
- * POPKID MD - MASTER ENGINE 2026
- * Features: Plugin Loader, Auto-Bio, Auto-Follow, High-Stability Connection
+ * POPKID MD - MASTER ENGINE 2026 (Unified Edition)
+ * Features: LID-Aware Status, Plugin Loader, Non-Prefix Support, Auto-Bio
+ * Creator: Popkid Kenya 🇰🇪
  */
 
 const { 
@@ -10,28 +11,36 @@ const {
     fetchLatestBaileysVersion, 
     Browsers, 
     makeCacheableSignalKeyStore,
-    getContentType
+    getContentType 
 } = require("@whiskeysockets/baileys");
 const pino = require("pino");
 const path = require("path");
 const fs = require("fs");
 const express = require("express");
 const qrcode = require("qrcode-terminal");
+const util = require("util");
+const { exec } = require("child_process");
+
+// Internal Libraries
 const { loadSession } = require("./lib/sessionLoader");
-const { handleMessages } = require("./handler");
+const { sms } = require("./lib/serialize");
 const config = require("./config");
 
 const app = express();
 const port = process.env.PORT || 8000;
 
+// Global Map for Modular Plugins
 global.plugins = new Map();
 
 async function startPopkid() {
-    // 1. Load Session
+    console.clear();
+    console.log("🚀 Starting POPKID-MD Master Engine...");
+
+    // 1. SESSION MANAGEMENT
     const sessionDir = path.join(__dirname, "sessions");
     await loadSession(config.SESSION_ID, sessionDir);
 
-    // 2. Load Plugins into Global Map
+    // 2. DYNAMIC PLUGIN LOADER
     const pluginsDir = path.join(__dirname, "plugins");
     if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir);
 
@@ -41,15 +50,16 @@ async function startPopkid() {
                 const plugin = require(path.join(pluginsDir, file));
                 if (plugin.cmd) {
                     global.plugins.set(plugin.cmd, plugin);
-                    console.log(`🧩 Loaded Plugin: ${plugin.cmd}`);
+                    console.log(`🧩 Plugin Loaded: ${plugin.cmd}`);
                 }
-            } catch (e) { console.error(`❌ Error in ${file}:`, e); }
+            } catch (e) { console.error(`❌ Plugin Load Error [${file}]:`, e.message); }
         }
     });
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
     const { version } = await fetchLatestBaileysVersion();
 
+    // 3. INITIALIZE SOCKET
     const conn = makeWASocket({
         version,
         logger: pino({ level: "silent" }),
@@ -60,49 +70,159 @@ async function startPopkid() {
         }
     });
 
-    // 3. Connection Handler
+    // 4. CONNECTION UPDATES
     conn.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update;
-
         if (qr) qrcode.generate(qr, { small: true });
 
         if (connection === "close") {
             let reason = lastDisconnect.error?.output?.statusCode;
             if (reason !== DisconnectReason.loggedOut) startPopkid();
         } else if (connection === "open") {
-            console.log("✅ POPKID MD: Successfully Connected!");
-
-            // Auto-Follow Channel
+            console.log("✅ POPKID MD: Successfully Connected to WhatsApp!");
+            
+            // Auto Follow Channel
             try {
-                const channelJid = "120363423997837331@newsletter"; 
-                await conn.newsletterFollow(channelJid);
-            } catch (err) { console.log("Channel follow verified."); }
+                await conn.newsletterFollow("120363423997837331@newsletter");
+                console.log("📡 Auto-followed Official Newsletter");
+            } catch (err) { console.log("Newsletter follow verified."); }
 
             const ownerJid = config.OWNER_NUMBER[0] + "@s.whatsapp.net";
-            await conn.sendMessage(ownerJid, { text: `🚀 *POPKID MD IS LIVE!*` });
+            await conn.sendMessage(ownerJid, { 
+                image: { url: "https://files.catbox.moe/j9ia5c.png" },
+                caption: `🚀 *POPKID-MD IS LIVE!* \n\nPrefix: ${config.PREFIX}\nNon-Prefix: ${config.NON_PREFIX}\nStatus View: ${config.AUTO_READ_STATUS}` 
+            });
         }
     });
 
     conn.ev.on("creds.update", saveCreds);
 
-    // 4. Message Upsert (The Trigger)
+    // 5. THE ULTIMATE MESSAGE HANDLER
     conn.ev.on("messages.upsert", async (chatUpdate) => {
-        const mek = chatUpdate.messages[0];
-        if (!mek.message) return;
-        // MUST pass raw mek to handleMessages for status logic
-        await handleMessages(conn, mek);
+        try {
+            const mek = chatUpdate.messages[0];
+            if (!mek.message) return;
+
+            // Handle Ephemeral Messages
+            mek.message = (getContentType(mek.message) === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
+            
+            const from = mek.key.remoteJid;
+            const type = getContentType(mek.message);
+
+            // ============ [ STATUS VIEW & REACT LOGIC ] ============
+            if (from === 'status@broadcast') {
+                try {
+                    const shouldRead = config.AUTO_READ_STATUS === 'true';
+                    const shouldReact = config.AUTO_REACT_STATUS === 'true';
+                    const statusParticipant = mek.key.participant || null;
+
+                    if (statusParticipant) {
+                        let realJid = statusParticipant;
+                        
+                        // LID-to-JID Resolution (Ensures stability for 2026 builds)
+                        if (statusParticipant.endsWith('@lid')) {
+                            const rawPn = mek.key?.participantPn || mek.key?.senderPn;
+                            if (rawPn) {
+                                realJid = rawPn.includes('@') ? rawPn : `${rawPn}@s.whatsapp.net`;
+                            } else {
+                                const resolved = await conn.getJidFromLid(statusParticipant).catch(() => null);
+                                if (resolved) realJid = resolved;
+                            }
+                        }
+
+                        // Define precise key for reading
+                        const resolvedKey = { 
+                            remoteJid: 'status@broadcast', 
+                            id: mek.key.id, 
+                            participant: realJid 
+                        };
+
+                        if (shouldRead) await conn.readMessages([resolvedKey]);
+
+                        if (shouldReact) {
+                            const reactable = ['imageMessage', 'videoMessage', 'extendedTextMessage', 'conversation'];
+                            if (reactable.includes(type)) {
+                                const emojis = ['🧩', '🌸', '💫', '🫀', '🧿', '🤖', '🥰', '🗿', '💙', '🌝', '🖤', '💚'];
+                                const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+                                await conn.sendMessage(from, { react: { key: resolvedKey, text: emoji } }, { statusJidList: [realJid, conn.user.id] });
+                            }
+                        }
+                    }
+                } catch (e) { console.error("Status Logic Error:", e.message); }
+                return; // End of status processing
+            }
+
+            // ============ [ COMMAND & PLUGIN LOGIC ] ============
+            const m = sms(conn, mek); // Serialize shortcuts
+            const body = m.body || '';
+            const isCmd = body.startsWith(config.PREFIX);
+            
+            // Smart Parsing for Prefix/Non-Prefix
+            let command = '';
+            let args = [];
+
+            if (isCmd) {
+                command = body.slice(config.PREFIX.length).trim().split(' ').shift().toLowerCase();
+                args = body.trim().split(/ +/).slice(1);
+            } else if (config.NON_PREFIX === "true") {
+                command = body.trim().split(' ').shift().toLowerCase();
+                args = body.trim().split(/ +/).slice(1);
+            }
+
+            const text = args.join(' ');
+            const pushname = m.pushName || 'User';
+            const isOwner = config.OWNER_NUMBER.includes(m.sender.split('@')[0]) || m.fromMe;
+            const botNumber = conn.user.id.split(':')[0] + '@s.whatsapp.net';
+
+            // Owner-Only Tools ($ and %)
+            if (isOwner) {
+                if (body.startsWith("$")) {
+                    try {
+                        let evaled = await eval(`(async () => { ${body.slice(1)} })()`);
+                        return m.reply(util.format(evaled));
+                    } catch (e) { return m.reply(util.format(e)); }
+                }
+                if (body.startsWith("%")) {
+                    exec(body.slice(1), (err, stdout) => {
+                        if (err) return m.reply(util.format(err));
+                        if (stdout) m.reply(stdout);
+                    });
+                }
+            }
+
+            // Plugin Execution (External plugins folder)
+            const plugin = global.plugins.get(command) || [...global.plugins.values()].find(p => p.alias && p.alias.includes(command));
+            if (plugin) {
+                // Ignore if NON_PREFIX is off and no prefix used
+                if (!isCmd && config.NON_PREFIX !== "true") return;
+
+                if (plugin.isOwner && !isOwner) return m.reply("❌ Developer Restricted Command.");
+                if (plugin.isGroup && !m.isGroup) return m.reply("❌ This is for Groups only.");
+                
+                if (plugin.isBotAdmin && m.isGroup) {
+                    const groupMetadata = await conn.groupMetadata(from);
+                    const bot = groupMetadata.participants.find(p => p.id === botNumber);
+                    if (!bot || !bot.admin) return m.reply("❌ I need Admin permissions first.");
+                }
+
+                try {
+                    await plugin.execute(conn, m, { text, args, isOwner, isGroup: m.isGroup, pushname });
+                } catch (e) { console.error(`Plugin Execution Error [${command}]:`, e.message); }
+            }
+
+        } catch (e) { console.error("Event Handler Error:", e.message); }
     });
 
-    // 5. Auto Bio Interval
+    // 6. AUTO-BIO UPDATER
     setInterval(async () => {
         if (config.AUTO_BIO === "true" && conn.user) {
-            const date = new Date().toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi' });
             const time = new Date().toLocaleTimeString('en-KE', { timeZone: 'Africa/Nairobi', hour12: false });
-            const bioText = `❤️ ᴘᴏᴘᴋɪᴅ xᴍᴅ ʙᴏᴛ 🤖 ɪs ʟɪᴠᴇ ɴᴏᴡ\n📅 ${date}\n⏰ ${time}`;
+            const bioText = `❤️ ᴘᴏᴘᴋɪᴅ xᴍᴅ ʙᴏᴛ ɪs ʟɪᴠᴇ ⏰ ${time} | Prefix: ${config.PREFIX}`;
             try { await conn.updateProfileStatus(bioText); } catch (err) {}
         }
     }, 60000);
 }
 
-app.get("/", (req, res) => res.send("POPKID MD ACTIVE"));
+// Keep-Alive Web Server
+app.get("/", (req, res) => res.send("POPKID-MD MASTER ENGINE ACTIVE ⚡"));
 app.listen(port, () => startPopkid());
