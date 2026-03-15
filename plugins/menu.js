@@ -3,69 +3,57 @@ const config = require("../config");
 module.exports = {
     cmd: "menu",
     alias: ["help", "list"],
-    desc: "Displays the categorized bot command list",
-    async execute(conn, m, { pushname }) {
-        // 1. Optimized Uptime Calculation
+    desc: "Displays the bot command list",
+    async execute(conn, m, { pushName, isOwner }) {
         const uptime = process.uptime();
-        const hours = Math.floor(uptime / 3600).toString().padStart(2, '0');
-        const minutes = Math.floor((uptime % 3600) / 60).toString().padStart(2, '0');
-        const seconds = Math.floor(uptime % 60).toString().padStart(2, '0');
+        const hours = Math.floor(uptime / 3600);
+        const minutes = Math.floor((uptime % 3600) / 60);
+        const seconds = Math.floor(uptime % 60);
+
+        // Header Section
+        let menuText = `╔════════════════╗\n`;
+        menuText += `  🚀 *POPKID-MD DASHBOARD* \n`;
+        menuText += `╠════════════════╣\n`;
+        menuText += ` 👤 *User:* ${pushName}\n`;
+        menuText += ` 🕒 *Uptime:* ${hours}h ${minutes}m ${seconds}s\n`;
+        menuText += ` 🔑 *Prefix:* [ ${config.PREFIX} ]\n`;
+        menuText += ` 🌍 *Mode:* ${isOwner ? 'Developer' : 'Public'}\n`;
+        menuText += `╚════════════════╝\n\n`;
+
+        // 🤖 Dynamic Command Collector
+        menuText += `🛠 *AVAILABLE COMMANDS*\n`;
         
-        // 2. Count total commands from the global.plugins Map
-        const totalCommands = global.plugins.size;
-        const ping = Date.now() - (m.messageTimestamp * 1000);
-
-        // --- Styled Header Section ---
-        let menuText = `╭━━━〔 𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 〕━⊷\n`;
-        menuText += `┃ 👤 𝚄𝚜𝚎𝚛: ${pushname}\n`;
-        menuText += `┃ ⏳ 𝚄𝚙𝚝𝚒𝚖𝚎: ${hours}𝚑 ${minutes}𝚖 ${seconds}𝚜\n`;
-        menuText += `┃ 🤖 𝙲𝚘𝚖𝚖𝚊𝚗𝚍𝚜: ${totalCommands}\n`;
-        menuText += `┃ 🔑 𝙿𝚛𝚎𝚏𝚒𝚡: [ ${config.PREFIX} ]\n`;
-        menuText += `┃ 🌍 𝙼𝚘𝚍𝚎: ${config.MODE}\n`;
-        menuText += `╰━━━━━━━━━━━━━━━━⊷\n\n`;
-
-        // 3. Organize Commands by Category
-        const categories = {};
-        global.plugins.forEach((plugin) => {
-            if (!plugin.cmd) return;
-            const cat = (plugin.category || "General").toUpperCase();
-            if (!categories[cat]) categories[cat] = [];
-            categories[cat].push(plugin.cmd);
-        });
-
-        // 4. Build Categorized List
-        const categoryKeys = Object.keys(categories).sort();
-        
-        categoryKeys.forEach((cat) => {
-            menuText += `╔══✪  『 *${cat}* 』\n`;
+        if (global.plugins.size > 0) {
+            // Sort plugins alphabetically
+            const sortedPlugins = Array.from(global.plugins.values()).sort((a, b) => a.cmd.localeCompare(b.cmd));
             
-            const sortedCmds = categories[cat].sort();
-            sortedCmds.forEach((cmd, index) => {
-                const isLast = index === sortedCmds.length - 1;
-                menuText += `${isLast ? "╚" : "╠"} ➩ ${config.PREFIX}${cmd}\n`;
+            sortedPlugins.forEach((plugin) => {
+                // Simplified to only show the command
+                menuText += ` ├ ${config.PREFIX}${plugin.cmd}\n`;
             });
-            menuText += `\n`;
-        });
+        } else {
+            menuText += ` ├ No plugins loaded.\n`;
+        }
 
-        // --- Footer ---
-        menuText += `✨ 𝚂𝚢𝚜𝚝𝚎𝚖 𝙸𝚗𝚏𝚘:\n`;
-        menuText += `⚡ 𝙿𝚒𝚗𝚐: ${ping < 0 ? '0' : ping}𝚖𝚜\n`;
-        menuText += `🇰🇪 *ᴘᴏᴘᴋɪᴅ ᴋᴇɴʏᴀ*`;
+        menuText += `\n⚙️ *SYSTEM COMMANDS*\n`;
+        menuText += ` ├ ${config.PREFIX}ping\n`;
+        menuText += ` ├ ${config.PREFIX}runtime\n`;
+        menuText += ` ├ ${config.PREFIX}restart\n`;
+        menuText += `\n╚════════════════╝\n`;
+        menuText += `*Created by Popkid Kenya* 🇰🇪`;
 
-        // 5. THE FIX: Sending with Clean ContextInfo (Matches Uptime style)
+        // Sending with a professional External Ad Reply
         await conn.sendMessage(m.from, { 
-            text: menuText,
+            image: { url: "https://files.catbox.moe/j9ia5c.png" }, 
+            caption: menuText,
             contextInfo: {
-                mentionedJid: [m.sender],
-                // We removed isForwarded and forwardingScore so everyone can see it
                 externalAdReply: {
-                    title: "ᴘᴏᴘᴋɪᴅ-ᴍᴅ ᴀᴜᴛᴏᴍᴀᴛɪᴏɴ",
-                    body: `Latency: ${ping < 0 ? '0' : ping}ms | Status: Active`,
+                    title: "POPKID-MD MULTI-DEVICE",
+                    body: "Status: Online & Functional",
                     thumbnailUrl: "https://files.catbox.moe/j9ia5c.png",
-                    sourceUrl: "https://whatsapp.com/channel/0029VacgxK96hENmSRMRxx1r",
+                    sourceUrl: "https://github.com/popkidmd",
                     mediaType: 1,
-                    renderLargerThumbnail: true,
-                    showAdAttribution: true
+                    renderLargerThumbnail: true
                 }
             }
         }, { quoted: m });
