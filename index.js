@@ -1,6 +1,7 @@
 /**
  * POPKID MD - MASTER ENGINE 2026 (Unified Edition)
- * Features: Status View, Plugin Loader, Non-Prefix, Auto-Bio, Always-Online, Auto-React
+ * Features: LID-Aware Status, Plugin Loader, Non-Prefix, Auto-Bio,
+ * Always-Online, Auto-Typing, Auto-Recording, Auto-React.
  * Creator: Popkid Kenya 🇰🇪
  */
 
@@ -84,6 +85,7 @@ async function startPopkid() {
             // --- ALWAYS ONLINE ---
             if (config.ALWAYS_ONLINE === "true") {
                 await conn.sendPresenceUpdate('available');
+                console.log("🌐 Always Online mode activated");
             }
 
             // Auto Follow Channel
@@ -114,14 +116,21 @@ async function startPopkid() {
             const from = mek.key.remoteJid;
             const type = getContentType(mek.message);
 
-            // --- PRESENCE & AUTO-REACT ---
+            // ============ [ PRESENCE & AUTO-REACT ] ============
             if (from !== 'status@broadcast') {
-                if (config.AUTO_TYPING === "true") await conn.sendPresenceUpdate('composing', from);
-                if (config.AUTO_RECORDING === "true") await conn.sendPresenceUpdate('recording', from);
+                // 1. Auto Typing
+                if (config.AUTO_TYPING === "true") {
+                    await conn.sendPresenceUpdate('composing', from);
+                }
+                // 2. Auto Recording
+                if (config.AUTO_RECORDING === "true") {
+                    await conn.sendPresenceUpdate('recording', from);
+                }
+                // 3. Auto React to Incoming Messages
                 if (config.AUTO_REACT === "true" && !mek.key.fromMe) {
-                    const emojis = ['❤️', '🔥', '✨', '⚡', '🤖', '💎', '🚀'];
-                    const rand = emojis[Math.floor(Math.random() * emojis.length)];
-                    await conn.sendMessage(from, { react: { text: rand, key: mek.key } });
+                    const reactEmojis = ['❤️', '🔥', '✨', '⚡', '🤖', '💎', '🚀', '🦁'];
+                    const randEmoji = reactEmojis[Math.floor(Math.random() * reactEmojis.length)];
+                    await conn.sendMessage(from, { react: { text: randEmoji, key: mek.key } });
                 }
             }
 
@@ -134,6 +143,8 @@ async function startPopkid() {
 
                     if (statusParticipant) {
                         let realJid = statusParticipant;
+                        
+                        // LID-to-JID Resolution
                         if (statusParticipant.endsWith('@lid')) {
                             const rawPn = mek.key?.participantPn || mek.key?.senderPn;
                             if (rawPn) {
@@ -144,8 +155,14 @@ async function startPopkid() {
                             }
                         }
 
-                        const resolvedKey = { remoteJid: 'status@broadcast', id: mek.key.id, participant: realJid };
+                        const resolvedKey = { 
+                            remoteJid: 'status@broadcast', 
+                            id: mek.key.id, 
+                            participant: realJid 
+                        };
+
                         if (shouldRead) await conn.readMessages([resolvedKey]);
+
                         if (shouldReact) {
                             const reactable = ['imageMessage', 'videoMessage', 'extendedTextMessage', 'conversation'];
                             if (reactable.includes(type)) {
@@ -180,6 +197,7 @@ async function startPopkid() {
             const isOwner = config.OWNER_NUMBER.includes(m.sender.split('@')[0]) || m.fromMe;
             const botNumber = conn.user.id.split(':')[0] + '@s.whatsapp.net';
 
+            // Owner Tools ($ and %)
             if (isOwner) {
                 if (body.startsWith("$")) {
                     try {
@@ -195,9 +213,11 @@ async function startPopkid() {
                 }
             }
 
+            // Plugin Execution
             const plugin = global.plugins.get(command) || [...global.plugins.values()].find(p => p.alias && p.alias.includes(command));
             if (plugin) {
                 if (!isCmd && config.NON_PREFIX !== "true") return;
+
                 if (plugin.isOwner && !isOwner) return m.reply("❌ Developer Restricted.");
                 if (plugin.isGroup && !m.isGroup) return m.reply("❌ Groups only.");
                 
