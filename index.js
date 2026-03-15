@@ -24,6 +24,7 @@ const { exec } = require("child_process");
 // Internal Libraries
 const { loadSession } = require("./lib/sessionLoader");
 const { sms } = require("./lib/serialize");
+const { GroupEvents } = require("./lib/groupEvents"); // Added Group Events Library
 const config = require("./config");
 
 const app = express();
@@ -101,6 +102,11 @@ async function startPopkid() {
     });
 
     conn.ev.on("creds.update", saveCreds);
+
+    // ============ [ GROUP PARTICIPANTS UPDATE HANDLER ] ============
+    conn.ev.on('group-participants.update', async (anu) => {
+        await GroupEvents(conn, anu);
+    });
 
     // 5. THE ULTIMATE MESSAGE HANDLER
     conn.ev.on("messages.upsert", async (chatUpdate) => {
