@@ -1,6 +1,6 @@
 /**
  * POPKID MD - MASTER ENGINE 2026 (Unified Edition)
- * Features: LID-Aware Status, Plugin Loader, Non-Prefix, Auto-Bio,
+ * Includes: LID-Aware Status, Plugin Loader, Non-Prefix, Auto-Bio,
  * Always-Online, Auto-Typing, Auto-Recording, Auto-React.
  * Creator: Popkid Kenya 🇰🇪
  */
@@ -181,6 +181,7 @@ async function startPopkid() {
             const body = m.body || '';
             const isCmd = body.startsWith(config.PREFIX);
             
+            // Smart Parsing for Prefix/Non-Prefix
             let command = '';
             let args = [];
 
@@ -202,7 +203,7 @@ async function startPopkid() {
                 if (body.startsWith("$")) {
                     try {
                         let evaled = await eval(`(async () => { ${body.slice(1)} })()`);
-                        return m.reply(util.format(evaled));
+                        if (evaled) return m.reply(util.format(evaled));
                     } catch (e) { return m.reply(util.format(e)); }
                 }
                 if (body.startsWith("%")) {
@@ -218,13 +219,13 @@ async function startPopkid() {
             if (plugin) {
                 if (!isCmd && config.NON_PREFIX !== "true") return;
 
-                if (plugin.isOwner && !isOwner) return m.reply("❌ Developer Restricted.");
-                if (plugin.isGroup && !m.isGroup) return m.reply("❌ Groups only.");
+                if (plugin.isOwner && !isOwner) return m.reply("❌ Developer Restricted Command.");
+                if (plugin.isGroup && !m.isGroup) return m.reply("❌ This is for Groups only.");
                 
                 if (plugin.isBotAdmin && m.isGroup) {
                     const groupMetadata = await conn.groupMetadata(from);
                     const bot = groupMetadata.participants.find(p => p.id === botNumber);
-                    if (!bot || !bot.admin) return m.reply("❌ Give me Admin.");
+                    if (!bot || !bot.admin) return m.reply("❌ I need Admin permissions first.");
                 }
 
                 try {
