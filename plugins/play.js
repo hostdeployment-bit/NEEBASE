@@ -5,25 +5,28 @@ const config = require("../config");
 module.exports = {
     cmd: "play",
     alias: ["p", "song", "ytmp3"],
-    desc: "Download audio using SilvaTech API",
+    desc: "Download audio using GiftedTech API",
     category: "download",
     async execute(conn, m, { text, pushname }) {
-        if (!text) return m.reply(`❌ Please provide a song name or link!\n\nExample: *${config.PREFIX}play* Calm Down`);
+        if (!text) return m.reply(`❌ Please provide a song name or link!\n\nExample: *${config.PREFIX}play* Maa To Mara`);
 
         try {
             // 1. React to show processing
             await m.react("📥");
 
-            // 2. Search YouTube to get Video URL and Info
+            // 2. Search YouTube to get Video Info
             const search = await yts(text);
             const video = search.videos[0];
             if (!video) return m.reply("❌ No results found on YouTube.");
+
+            // Ensure we have a clean URL for the API
+            const cleanUrl = video.url.split('&')[0];
 
             const infoMsg = `🎵 *POPKID-MD AUDIO PLAYER*\n\n` +
                 `📝 *Title:* ${video.title}\n` +
                 `⏱️ *Duration:* ${video.timestamp}\n` +
                 `👤 *Requested by:* ${pushname}\n\n` +
-                `⏳ _Fetching audio from SilvaTech..._`;
+                `⏳ _Fetching audio from GiftedTech..._`;
 
             // 3. Send Info with Thumbnail
             await conn.sendMessage(m.from, { 
@@ -31,16 +34,17 @@ module.exports = {
                 caption: infoMsg 
             }, { quoted: m });
 
-            // 4. Fetch Download Link from SilvaTech API
-            const apiURL = `https://api.silvatech.co.ke/download/ytmp3?url=${encodeURIComponent(video.url)}`;
+            // 4. Fetch Download Link from GiftedTech API
+            // Using the structure: data.result.download_url
+            const apiURL = `https://api.giftedtech.co.ke/api/download/ytmp3?apikey=gifted&url=${encodeURIComponent(cleanUrl)}&quality=128kbps`;
             const response = await axios.get(apiURL);
             const data = response.data;
 
-            // Target the dl_link inside the result object
-            const downloadUrl = data.result?.dl_link;
+            const downloadUrl = data.result?.download_url;
 
             if (!downloadUrl) {
-                return m.reply("❌ Failed to fetch the audio link. The API might be down or limited.");
+                console.log("GiftedTech Response Error:", data);
+                return m.reply("❌ Failed to fetch the audio link. The API might be down or video restricted.");
             }
 
             // 5. Send the Audio File
@@ -54,8 +58,8 @@ module.exports = {
             await m.react("✅");
 
         } catch (e) {
-            console.error("SilvaTech Play Error:", e.message);
-            m.reply("⚠️ An error occurred while downloading. Please try again later.");
+            console.error("GiftedTech Play Error:", e.message);
+            m.reply("⚠️ An error occurred. Please try again later or check your API connection.");
         }
     }
 };
