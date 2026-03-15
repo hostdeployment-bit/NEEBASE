@@ -1,16 +1,16 @@
 const { downloadContentFromMessage, getContentType } = require("@whiskeysockets/baileys");
-const axios = require("axios");
 const Jimp = require("jimp");
-const FormData = require("form-data");
+const { exec } = require("child_process");
+const fs = require("fs");
+const path = require("path");
 
 module.exports = {
     cmd: "sticker",
     alias: ["s", "stiker"],
-    desc: "Convert image to sticker with local processing",
+    desc: "Local high-speed sticker converter",
     category: "convert",
     async execute(conn, m) {
         try {
-            // 1. Raw extraction of the quoted message
             const messageContent = m.message?.extendedTextMessage?.contextInfo?.quotedMessage || m.message;
             const type = getContentType(messageContent);
             const mediaMsg = messageContent?.imageMessage || messageContent?.documentMessage;
@@ -19,43 +19,46 @@ module.exports = {
                 return m.reply("❌ Please reply to an image!");
             }
 
-            await m.react("🎨");
+            await m.react("⏳");
 
-            // 2. Direct Raw Download
+            // 1. Download Media
             const stream = await downloadContentFromMessage(mediaMsg, 'image');
             let buffer = Buffer.from([]);
             for await (const chunk of stream) {
                 buffer = Buffer.concat([buffer, chunk]);
             }
 
-            // 3. Local Pre-processing with Jimp (The Secret Sauce)
-            // This crops and resizes the image to 512x512 so the API can't fail
+            // 2. Process Image (Square Crop)
             const image = await Jimp.read(buffer);
-            image.cover(512, 512); // Makes it a perfect square for WhatsApp
-            const processedBuffer = await image.getBufferAsync(Jimp.MIME_JPEG);
+            image.cover(512, 512); 
+            const jpgBuffer = await image.getBufferAsync(Jimp.MIME_JPEG);
 
-            // 4. Upload to Catbox
-            const form = new FormData();
-            form.append('fileToUpload', processedBuffer, { filename: 'sticker.jpg' });
-            form.append('reqtype', 'fileupload');
+            // 3. Save temp files
+            const tmpFile = path.join(__dirname, `../tmp/${Date.now()}.jpg`);
+            const webpFile = path.join(__dirname, `../tmp/${Date.now()}.webp`);
+            if (!fs.existsSync(path.join(__dirname, '../tmp'))) fs.mkdirSync(path.join(__dirname, '../tmp'));
             
-            const upload = await axios.post('https://catbox.moe/user/api.php', form, {
-                headers: form.getHeaders()
+            fs.writeFileSync(tmpFile, jpgBuffer);
+
+            // 4. Use local FFMPEG (Fast & Offline)
+            exec(`ffmpeg -i ${tmpFile} -vf "scale=512:512:force_original_aspect_ratio=increase,crop=512:512" ${webpFile}`, async (err) => {
+                if (err) {
+                    // Fallback if FFMPEG fails: Send as image buffer (Baileys auto-converts some)
+                    await conn.sendMessage(m.from, { sticker: jpgBuffer }, { quoted: m });
+                } else {
+                    const finalSticker = fs.readFileSync(webpFile);
+                    await conn.sendMessage(m.from, { sticker: finalSticker }, { quoted: m });
+                }
+
+                // Cleanup
+                if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+                if (fs.existsSync(webpFile)) fs.unlinkSync(webpFile);
+                await m.react("✅");
             });
 
-            // 5. Final Conversion via API
-            const stickerApi = `https://api.lolhuman.xyz/api/convert/towebp?apikey=GataDios&img=${encodeURIComponent(upload.data)}`;
-            const stickerRes = await axios.get(stickerApi, { responseType: 'arraybuffer' });
-
-            await conn.sendMessage(m.from, { 
-                sticker: Buffer.from(stickerRes.data) 
-            }, { quoted: m });
-
-            await m.react("✅");
-
         } catch (e) {
-            console.error("Sticker Error:", e);
-            m.reply(`❌ Conversion Error: ${e.message}. Make sure 'form-data' is installed.`);
+            console.error(e);
+            m.reply("❌ System Error: " + e.message);
         }
     }
 };
