@@ -25,6 +25,7 @@ const { exec } = require("child_process");
 const { loadSession } = require("./lib/sessionLoader");
 const { sms } = require("./lib/serialize");
 const { GroupEvents } = require("./lib/groupEvents"); // Added Group Events Library
+const { AntilinkHandler } = require("./lib/antilinkHandler"); // Added Antilink Handler Library
 const config = require("./config");
 
 const app = express();
@@ -182,6 +183,10 @@ async function startPopkid() {
 
             // ============ [ COMMAND & PLUGIN LOGIC ] ============
             const m = sms(conn, mek); 
+            
+            // --- ANTILINK HANDLER ---
+            await AntilinkHandler(conn, m, config.OWNER_NUMBER.includes(m.sender.split('@')[0]));
+
             const body = m.body || '';
             const isCmd = body.startsWith(config.PREFIX);
             
