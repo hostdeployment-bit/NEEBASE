@@ -1,4 +1,6 @@
 const { exec } = require("child_process");
+const fs = require("fs");
+const path = require("path");
 
 module.exports = {
     cmd: "update",
@@ -9,46 +11,51 @@ module.exports = {
     async execute(conn, m) {
         await m.react("📥");
 
-        // The exact Repo URL from your link
         const repoUrl = "https://github.com/hostdeployment-bit/NEEBASE.git";
+        const gitFolder = path.join(__dirname, "../.git");
 
-        // 1. Force the remote to match your NEEBASE repo
-        exec(`git remote set-url origin ${repoUrl}`, (remoteErr) => {
-            if (remoteErr) {
-                // If remote origin doesn't exist, try adding it
-                exec(`git remote add origin ${repoUrl}`);
-            }
-
-            // 2. Fetch the latest metadata from GitHub
+        // Function to run the actual update logic
+        const runUpdate = () => {
             exec("git fetch origin main", async (fetchErr) => {
                 if (fetchErr) return m.reply(`❌ Git Fetch Error: ${fetchErr.message}`);
 
-                // 3. Check for new commits in the 'main' branch
                 exec("git log HEAD..origin/main --oneline", async (logErr, stdout) => {
                     if (logErr) return m.reply(`❌ Git Log Error: ${logErr.message}`);
 
-                    // If no output, we are already current
                     if (!stdout || stdout.trim() === "") {
                         await m.react("✅");
-                        return m.reply("✅ *POPKID-MD* is already running the latest version of NEEBASE.");
+                        return m.reply("✅ *POPKID-MD* is already up to date.");
                     }
 
                     const updateLogs = stdout.trim().split('\n').map(line => `🔹 ${line}`).join('\n');
-                    await m.reply(`🚀 *Update Found in NEEBASE!*\n\n*Commits:* \n${updateLogs}\n\n*Applying updates and restarting...*`);
+                    await m.reply(`🚀 *Update Found!*\n\n*Commits:* \n${updateLogs}\n\n*Updating...*`);
 
-                    // 4. Stash local changes and pull (Clears conflicts automatically)
-                    exec("git stash && git pull origin main", async (pullErr) => {
-                        if (pullErr) return m.reply(`❌ Pull Error: ${pullErr.message}\n\n_Conflict detected. Try redeploying manually._`);
+                    // Reset and Pull (Best for panels)
+                    exec("git reset --hard origin/main && git pull origin main", async (pullErr) => {
+                        if (pullErr) return m.reply(`❌ Pull Error: ${pullErr.message}`);
 
                         await m.react("🔄");
-                        
-                        // 2 second delay so you can see the "Success" reaction before restart
-                        setTimeout(() => {
-                            process.exit();
-                        }, 2000);
+                        setTimeout(() => { process.exit(); }, 2000);
                     });
                 });
             });
-        });
+        };
+
+        // --- CHECK IF IT'S A REPO ---
+        if (!fs.existsSync(gitFolder)) {
+            await m.reply("🛠️ *Git not initialized.* Fixing repository links...");
+            
+            const initCmd = `git init && git remote add origin ${repoUrl} && git fetch origin && git checkout -f main`;
+            
+            exec(initCmd, (initErr) => {
+                if (initErr) return m.reply(`❌ Initialization Failed: ${initErr.message}`);
+                runUpdate();
+            });
+        } else {
+            // It is a repo, just ensure the URL is correct and update
+            exec(`git remote set-url origin ${repoUrl}`, () => {
+                runUpdate();
+            });
+        }
     }
 };
