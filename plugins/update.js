@@ -13,39 +13,44 @@ module.exports = {
 
         const repoUrl = "https://github.com/hostdeployment-bit/NEEBASE.git";
         
-        // This command sequence:
-        // 1. Initializes git if missing
-        // 2. Forces the remote URL to the correct one
-        // 3. Fetches the latest code
-        // 4. Overwrites EVERYTHING locally with the GitHub version
+        // Command is hidden from stdout using 'q' or redirecting to /dev/null
         const updateCmd = `
-            git init && 
+            git init -q && 
             git remote remove origin || true && 
             git remote add origin ${repoUrl} && 
-            git fetch origin main && 
+            git fetch origin main -q && 
             git log HEAD..origin/main --oneline
         `;
 
         exec(updateCmd, async (err, stdout) => {
-            if (err && !err.message.includes("fatal: empty secondary path")) {
-                // If it's a real error, report it
-                if (!stdout) return m.reply(`❌ Git Sync Error: ${err.message}`);
+            if (err) {
+                // Ignore the 'empty secondary path' non-error
+                if (!err.message.includes("secondary path")) {
+                    return m.reply(`❌ Git Sync Error: ${err.message}`);
+                }
             }
 
-            if (!stdout || stdout.trim() === "") {
+            // Filter out system messages so only real commits remain
+            const cleanCommits = stdout
+                .trim()
+                .split('\n')
+                .filter(line => !line.toLowerCase().includes('reinitialized') && line.length > 5)
+                .map(line => `🔹 ${line}`)
+                .join('\n');
+
+            if (!cleanCommits || cleanCommits === "") {
                 await m.react("✅");
                 return m.reply("✅ *POPKID-MD* is already fully synced with NEEBASE.");
             }
 
-            const commits = stdout.trim().split('\n').map(line => `🔹 ${line}`).join('\n');
-            await m.reply(`🚀 *Deep Update Found!*\n\n*Changes in index, plugins, and core:* \n${commits}\n\n*Overwriting all files...*`);
+            await m.reply(`🚀 *Update Found!*\n\n*Latest Changes:* \n${cleanCommits}\n\n*Synchronizing all files...*`);
 
-            // THE NUCLEAR OPTION: Force reset matches GitHub exactly
+            // Force reset and pull
             exec("git reset --hard origin/main && git pull origin main", async (finalErr) => {
                 if (finalErr) return m.reply(`❌ Final Sync Failed: ${finalErr.message}`);
 
                 await m.react("🔄");
-                await m.reply("✅ *All files updated successfully!* Restarting engine...");
+                await m.reply("✅ *Engine Synchronized!* Restarting now...");
                 
                 setTimeout(() => { 
                     process.exit(); 
