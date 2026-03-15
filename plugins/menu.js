@@ -15,13 +15,13 @@ module.exports = {
         const totalCommands = global.plugins.size;
 
         // --- Styled Header Section ---
-        let menuText = `╭━━━〔 𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐕𝟑 〕━━━⊷\n`;
+        let menuText = `╭━━━〔 𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 〕━⊷\n`;
         menuText += `┃ 👤 𝚄𝚜𝚎𝚛: ${pushname}\n`;
         menuText += `┃ ⏳ 𝚄𝚙𝚝𝚒𝚖𝚎: ${hours}𝚑 ${minutes}𝚖 ${seconds}𝚜\n`;
         menuText += `┃ 🤖 𝙲𝚘𝚖𝚖𝚊𝚗𝚍𝚜: ${totalCommands}\n`;
         menuText += `┃ 🔑 𝙿𝚛𝚎𝚏𝚒𝚡: [ ${config.PREFIX} ]\n`;
         menuText += `┃ 🌍 𝙼𝚘𝚍𝚎: ${config.MODE}\n`;
-        menuText += `╰━━━━━━━━━━━━━━━━━━⊷\n\n`;
+        menuText += `╰━━━━━━━━━━━━━━━━⊷\n\n`;
 
         // 3. Organize Commands by Category
         const categories = {};
