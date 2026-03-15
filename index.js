@@ -155,7 +155,16 @@ async function startPopkid() {
                         if (shouldReact) {
                             const reactable = ['imageMessage', 'videoMessage', 'extendedTextMessage', 'conversation', 'audioMessage'];
                             if (reactable.includes(type)) {
-                                const emojis = ['🧩', '🌸', '💫', '🫀', '🧿', '🤖', '🥰', '🗿', '💙', '🌝', '🖤', '💚'];
+                                // --- DYNAMIC EMOJI LOGIC ---
+                                let emojis = ['🧩', '🌸', '💫', '🫀', '🧿', '🤖', '🥰', '🗿', '💙', '🌝', '🖤', '💚']; // Default
+                                const emojiPath = path.join(__dirname, './database/status_emojis.json');
+                                if (fs.existsSync(emojiPath)) {
+                                    const customEmojis = JSON.parse(fs.readFileSync(emojiPath));
+                                    if (customEmojis.emojis && customEmojis.emojis.length > 0) {
+                                        emojis = customEmojis.emojis;
+                                    }
+                                }
+                                
                                 const emoji = emojis[Math.floor(Math.random() * emojis.length)];
                                 await conn.sendMessage(from, { 
                                     react: { key: resolvedKey, text: emoji } 
