@@ -4,15 +4,15 @@ module.exports = {
     cmd: "menu",
     alias: ["help", "list"],
     desc: "Displays the categorized bot command list",
-    async execute(conn, m, { pushname, isOwner }) {
-        // Optimized Uptime & Date
+    async execute(conn, m, { pushname }) {
+        // 1. Optimized Uptime Calculation
         const uptime = process.uptime();
         const hours = Math.floor(uptime / 3600).toString().padStart(2, '0');
         const minutes = Math.floor((uptime % 3600) / 60).toString().padStart(2, '0');
         const seconds = Math.floor(uptime % 60).toString().padStart(2, '0');
         
-        // Count total commands
-        const totalCommands = global.plugins ? global.plugins.filter(p => p.cmd).length : 0;
+        // 2. Count total commands from the global.plugins Map
+        const totalCommands = global.plugins.size;
 
         // --- Styled Header Section ---
         let menuText = `╭━━━〔 𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐕𝟑 〕━━━⊷\n`;
@@ -23,7 +23,7 @@ module.exports = {
         menuText += `┃ 🌍 𝙼𝚘𝚍𝚎: ${config.MODE}\n`;
         menuText += `╰━━━━━━━━━━━━━━━━━━⊷\n\n`;
 
-        // --- Organize Commands by Category ---
+        // 3. Organize Commands by Category
         const categories = {};
         global.plugins.forEach((plugin) => {
             if (!plugin.cmd) return;
@@ -32,7 +32,7 @@ module.exports = {
             categories[cat].push(plugin.cmd);
         });
 
-        // --- Build Categorized List ---
+        // 4. Build Categorized List
         const categoryKeys = Object.keys(categories).sort();
         
         categoryKeys.forEach((cat) => {
@@ -47,11 +47,12 @@ module.exports = {
         });
 
         // --- Footer ---
+        const ping = Date.now() - (m.messageTimestamp * 1000);
         menuText += `✨ 𝚂𝚢𝚜𝚝𝚎𝚖 𝙸𝚗𝚏𝚘:\n`;
-        menuText += `⚡ 𝙿𝚒𝚗𝚐: ${Date.now() - m.messageTimestamp * 1000}𝚖𝚜\n`;
+        menuText += `⚡ 𝙿𝚒𝚗𝚐: ${ping}𝚖𝚜\n`;
         menuText += `🇰🇪 *ᴘᴏᴘᴋɪᴅ ᴋᴇɴʏᴀ*`;
 
-        // Sending as Text with External Ad Reply (No big image)
+        // 5. Sending as Text with External Ad Reply
         await conn.sendMessage(m.from, { 
             text: menuText,
             contextInfo: {
@@ -60,11 +61,12 @@ module.exports = {
                 isForwarded: true,
                 externalAdReply: {
                     title: "ᴘᴏᴘᴋɪᴅ-ᴍᴅ ᴀᴜᴛᴏᴍᴀᴛɪᴏɴ",
-                    body: "sᴛᴀᴛᴜs: ᴏɴʟɪɴᴇ & ᴀᴄᴛɪᴠᴇ",
+                    body: `Latency: ${ping}ms | Status: Active`,
                     thumbnailUrl: "https://files.catbox.moe/j9ia5c.png",
-                    sourceUrl: "https://whatsapp.com/channel/0029VajmS0S47Xe36JUn9l1D",
+                    sourceUrl: "https://whatsapp.com/channel/0029VacgxK96hENmSRMRxx1r",
                     mediaType: 1,
-                    renderLargerThumbnail: true
+                    renderLargerThumbnail: true,
+                    showAdAttribution: true
                 }
             }
         }, { quoted: m });
