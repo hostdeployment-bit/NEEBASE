@@ -21,15 +21,15 @@ module.exports = {
         menuText += `╚════════════════╝\n\n`;
 
         // 🤖 Dynamic Command Collector
-        // This automatically groups plugins by category if you add a 'category' field to them
         menuText += `🛠 *AVAILABLE COMMANDS*\n`;
         
         if (global.plugins.size > 0) {
-            // Sort plugins alphabetically for a clean look
+            // Sort plugins alphabetically
             const sortedPlugins = Array.from(global.plugins.values()).sort((a, b) => a.cmd.localeCompare(b.cmd));
             
             sortedPlugins.forEach((plugin) => {
-                menuText += ` ├ ${config.PREFIX}${plugin.cmd} ${plugin.desc ? `_(${plugin.desc})_` : ''}\n`;
+                // Simplified to only show the command
+                menuText += ` ├ ${config.PREFIX}${plugin.cmd}\n`;
             });
         } else {
             menuText += ` ├ No plugins loaded.\n`;
