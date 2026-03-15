@@ -25,7 +25,7 @@ module.exports = {
                 `📝 *Title:* ${video.title}\n` +
                 `⏱️ *Duration:* ${video.timestamp}\n` +
                 `👤 *Requested by:* ${pushname}\n\n` +
-                `⏳ _Fetching 720p video from GiftedTech..._`;
+                `⏳ _Fetching 720p video from popkidapi..._`;
 
             // 3. Send Thumbnail and Info
             await conn.sendMessage(m.from, { 
