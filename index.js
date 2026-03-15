@@ -1,6 +1,6 @@
 /**
  * POPKID MD - MASTER ENGINE 2026
- * Features: Multi-Platform Support, Auto-Reconnect, Session Loader
+ * Features: Plugin Loader, Multi-Platform Support, Auto-Reconnect
  */
 
 const { 
@@ -23,9 +23,29 @@ const config = require("./config");
 const app = express();
 const port = process.env.PORT || 8000;
 
+// Global variable to store plugins
+global.plugins = new Map();
+
 async function startPopkid() {
     const sessionDir = path.join(__dirname, "sessions");
     await loadSession(config.SESSION_ID, sessionDir);
+
+    // --- PLUGIN LOADER LOGIC ---
+    const pluginsDir = path.join(__dirname, "plugins");
+    if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir);
+
+    const pluginFiles = fs.readdirSync(pluginsDir).filter(file => file.endsWith(".js"));
+    for (const file of pluginFiles) {
+        try {
+            const plugin = require(path.join(pluginsDir, file));
+            if (plugin.cmd) {
+                global.plugins.set(plugin.cmd, plugin);
+                console.log(`🧩 Plugin Loaded: ${plugin.cmd}`);
+            }
+        } catch (e) {
+            console.error(`❌ Error loading plugin ${file}:`, e);
+        }
+    }
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
     const { version } = await fetchLatestBaileysVersion();
@@ -38,8 +58,7 @@ async function startPopkid() {
         auth: {
             creds: state.creds,
             keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "silent" })),
-        },
-        getMessage: async (key) => { return { conversation: 'POPKID MD' } } // Fix for Revoke/Delete
+        }
     });
 
     conn.ev.on("connection.update", async (update) => {
@@ -49,13 +68,8 @@ async function startPopkid() {
             if (reason !== DisconnectReason.loggedOut) startPopkid();
         } else if (connection === "open") {
             console.log("✅ POPKID MD: Successfully Connected!");
-            
-            // Notify Owner
             const ownerJid = config.OWNER_NUMBER[0] + "@s.whatsapp.net";
-            await conn.sendMessage(ownerJid, { 
-                text: `🚀 *POPKID MD IS LIVE!*\n\n*Prefix:* ${config.PREFIX}\n*Mode:* Public\n*Owner:* ${config.OWNER_NAME}`,
-                contextInfo: { externalAdReply: { title: "POPKID MD 2026", body: "Connected Successfully", previewType: "PHOTO", thumbnail: fs.readFileSync("./lib/thumb.jpg") }}
-            });
+            await conn.sendMessage(ownerJid, { text: `🚀 *POPKID MD IS LIVE!*` });
         }
     });
 
@@ -67,15 +81,7 @@ async function startPopkid() {
         const m = sms(conn, msg);
         await handleMessages(conn, m);
     });
-
-    // Auto-Bio Function
-    setInterval(async () => {
-        if (config.AUTO_BIO === "true" && conn.user) {
-            const date = new Date().toLocaleString("en-KE", { timeZone: "Africa/Nairobi" });
-            await conn.updateProfileStatus(`POPKID MD 🤖 | Active Since: ${date}`);
-        }
-    }, 60000);
 }
 
-app.get("/", (req, res) => res.send("POPKID MD RUNNING..."));
+app.get("/", (req, res) => res.send("POPKID MD ACTIVE"));
 app.listen(port, () => startPopkid());
