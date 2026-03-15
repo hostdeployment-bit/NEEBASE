@@ -1,12 +1,11 @@
-const { writeExif } = require('../lib/sticker');
+const axios = require("axios");
 
 module.exports = {
     cmd: "sticker",
     alias: ["s", "stiker"],
-    desc: "Convert image/video to sticker",
+    desc: "Convert image/video to sticker via API",
     category: "convert",
     async execute(conn, m) {
-        // 1. Detect if the user replied to media or sent media with the command
         const quoted = m.quoted ? m.quoted : m;
         const mime = (quoted.msg || quoted).mimetype || '';
 
@@ -15,30 +14,36 @@ module.exports = {
         try {
             await m.react("🎨");
 
-            // 2. Download the media buffer
+            // 1. Download the media from WhatsApp
             const media = await quoted.download();
             
-            // 3. Convert to WebP
-            let stickerBuffer;
-            if (/image/.test(mime)) {
-                stickerBuffer = await writeExif(media, 'image');
-            } else if (/video/.test(mime)) {
-                // Ensure video isn't too long (Baileys usually limits this anyway)
-                stickerBuffer = await writeExif(media, 'video');
-            } else {
-                return m.reply("❌ Unsupported file type!");
-            }
+            // 2. Upload to a temporary file host (Catbox) to get a URL for the API
+            const formData = new (require('form-data'))();
+            formData.append('fileToUpload', media, { filename: 'sticker_med' });
+            formData.append('reqtype', 'fileupload');
+            
+            const uploadRes = await axios.post('https://catbox.moe/user/api.php', formData, {
+                headers: formData.getHeaders()
+            });
 
-            // 4. Send the sticker
+            const fileUrl = uploadRes.data;
+
+            // 3. Use an API to convert the URL to a WebP Sticker
+            // Using a public 2026 API for conversion
+            const stickerApi = `https://api.lolhuman.xyz/api/convert/towebp?apikey=GataDios&img=${encodeURIComponent(fileUrl)}`;
+            
+            const stickerRes = await axios.get(stickerApi, { responseType: 'arraybuffer' });
+
+            // 4. Send the sticker back
             await conn.sendMessage(m.from, { 
-                sticker: stickerBuffer 
+                sticker: Buffer.from(stickerRes.data) 
             }, { quoted: m });
 
             await m.react("✅");
 
         } catch (e) {
-            console.error("Sticker Error:", e);
-            m.reply("❌ Conversion failed. Make sure FFMPEG is installed on your panel.");
+            console.error("Sticker API Error:", e.message);
+            m.reply("❌ API Conversion failed. Make sure you have 'form-data' and 'axios' installed.");
         }
     }
 };
