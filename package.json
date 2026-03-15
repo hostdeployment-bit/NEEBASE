@@ -7,7 +7,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.6.0",
+    "@whiskeysockets/baileys": "github:Mayelprince/Prince-bailey",
     "pino": "^9.0.0",
     "megajs": "^1.1.0",
     "qrcode-terminal": "^0.12.0",
