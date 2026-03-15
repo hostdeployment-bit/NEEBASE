@@ -1,6 +1,6 @@
 /**
  * POPKID MD - MASTER ENGINE 2026 (Unified Edition)
- * Features: LID-Aware Status, Plugin Loader, Non-Prefix Support, Auto-Bio, Always Online, Auto Typing, Auto React
+ * Features: Multi-Contact Status View/React, LID-Aware, Plugin Loader, Non-Prefix, Auto-Bio, Always Online
  * Creator: Popkid Kenya 🇰🇪
  */
 
@@ -114,17 +114,21 @@ async function startPopkid() {
             const from = mek.key.remoteJid;
             const type = getContentType(mek.message);
 
-            // ============ [ STATUS VIEW & REACT LOGIC - UNCHANGED ] ============
+            // ============ [ STATUS VIEW & REACT LOGIC (MULTI-CONTACT) ] ============
             if (from === 'status@broadcast') {
                 try {
                     const shouldRead = config.AUTO_READ_STATUS === 'true';
                     const shouldReact = config.AUTO_REACT_STATUS === 'true';
-                    const statusParticipant = mek.key.participant || null;
+                    
+                    // Improved Participant Detection for All Contacts
+                    const statusParticipant = mek.key.participant || mek.participant || mek.key.remoteJid;
 
-                    if (statusParticipant) {
+                    if (statusParticipant && statusParticipant !== 'status@broadcast') {
                         let realJid = statusParticipant;
+                        
+                        // LID-to-JID Stability
                         if (statusParticipant.endsWith('@lid')) {
-                            const rawPn = mek.key?.participantPn || mek.key?.senderPn;
+                            const rawPn = mek.key?.participantPn || mek.key?.senderPn || mek.participantPn;
                             if (rawPn) {
                                 realJid = rawPn.includes('@') ? rawPn : `${rawPn}@s.whatsapp.net`;
                             } else {
@@ -133,36 +137,36 @@ async function startPopkid() {
                             }
                         }
 
-                        const resolvedKey = { remoteJid: 'status@broadcast', id: mek.key.id, participant: realJid };
+                        const resolvedKey = { 
+                            remoteJid: 'status@broadcast', 
+                            id: mek.key.id, 
+                            participant: realJid 
+                        };
+
                         if (shouldRead) await conn.readMessages([resolvedKey]);
+                        
                         if (shouldReact) {
-                            const reactable = ['imageMessage', 'videoMessage', 'extendedTextMessage', 'conversation'];
+                            const reactable = ['imageMessage', 'videoMessage', 'extendedTextMessage', 'conversation', 'audioMessage'];
                             if (reactable.includes(type)) {
                                 const emojis = ['🧩', '🌸', '💫', '🫀', '🧿', '🤖', '🥰', '🗿', '💙', '🌝', '🖤', '💚'];
                                 const emoji = emojis[Math.floor(Math.random() * emojis.length)];
-                                await conn.sendMessage(from, { react: { key: resolvedKey, text: emoji } }, { statusJidList: [realJid, conn.user.id] });
+                                await conn.sendMessage(from, { 
+                                    react: { key: resolvedKey, text: emoji } 
+                                }, { 
+                                    statusJidList: [realJid, conn.user.id.split(':')[0] + '@s.whatsapp.net'] 
+                                });
                             }
                         }
                     }
-                } catch (e) { console.error("Status Logic Error:", e.message); }
+                } catch (e) { console.error("Status Error:", e.message); }
                 return; 
             }
 
             // ============ [ PRESENCE & AUTO-REACT LOGIC ] ============
             if (from !== 'status@broadcast' && !mek.key.fromMe) {
-                // Auto Typing
-                if (config.AUTO_TYPING === "true") {
-                    await conn.sendPresenceUpdate('composing', from);
-                }
-                // Auto Recording
-                if (config.AUTO_RECORDING === "true") {
-                    await conn.sendPresenceUpdate('recording', from);
-                }
-                // Auto Read (Blue Tick)
-                if (config.AUTO_READ === "true") {
-                    await conn.readMessages([mek.key]);
-                }
-                // Auto React
+                if (config.AUTO_TYPING === "true") await conn.sendPresenceUpdate('composing', from);
+                if (config.AUTO_RECORDING === "true") await conn.sendPresenceUpdate('recording', from);
+                if (config.AUTO_READ === "true") await conn.readMessages([mek.key]);
                 if (config.AUTO_REACT === "true") {
                     const reactEmojis = ['❤️', '🔥', '⚡', '🤖', '💎', '✨'];
                     const randReact = reactEmojis[Math.floor(Math.random() * reactEmojis.length)];
