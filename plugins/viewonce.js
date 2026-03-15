@@ -1,4 +1,4 @@
-const { downloadContentFromMessage, getContentType } = require("@whiskeysockets/baileys");
+const { getContentType, downloadContentFromMessage } = require("@whiskeysockets/baileys");
 
 module.exports = {
     cmd: "vv",
@@ -6,48 +6,46 @@ module.exports = {
     desc: "Retrieve/Leak View-Once media",
     category: "tools",
     async execute(conn, m) {
-        // 1. Check if the user is replying to a message
-        const quoted = m.quoted ? m.quoted : null;
-        if (!quoted) return m.reply("❌ *Please reply to a View-Once message!*");
-
-        // 2. Identify if the quoted message is View-Once
-        const msgType = getContentType(quoted.message);
-        const isViewOnce = quoted.message?.viewOnceMessageV2 || quoted.message?.viewOnceMessage;
-
-        if (!isViewOnce) return m.reply("❌ *That is not a View-Once message.*");
-
         try {
+            // 1. Get the content of the replied message (same as your setpp logic)
+            const quotedMsg = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+            if (!quotedMsg) return m.reply("❌ *Please reply to a View-Once message!*");
+
+            // 2. Identify the View-Once container
+            const isViewOnce = quotedMsg.viewOnceMessageV2 || quotedMsg.viewOnceMessage;
+            if (!isViewOnce) return m.reply("❌ *That is not a View-Once message.*");
+
+            // 3. Extract actual media content (Image or Video)
+            const mediaContent = isViewOnce.message;
+            const mediaType = getContentType(mediaContent); // 'imageMessage' or 'videoMessage'
+            const mediaData = mediaContent[mediaType];
+
             await m.react("⏳");
 
-            // 3. Extract the actual media message (Image or Video)
-            const viewOnceContent = quoted.message.viewOnceMessageV2?.message || quoted.message.viewOnceMessage?.message;
-            const mediaType = getContentType(viewOnceContent); // imageMessage or videoMessage
-            const mediaData = viewOnceContent[mediaType];
-
-            // 4. Download the media
+            // 4. Download media stream (Same logic as your setpp)
             const stream = await downloadContentFromMessage(mediaData, mediaType.replace('Message', ''));
             let buffer = Buffer.from([]);
             for await (const chunk of stream) {
                 buffer = Buffer.concat([buffer, chunk]);
             }
 
-            // 5. Send it back as a normal message
+            // 5. Send back as permanent media
             const caption = `🔓 *POPKID-MD VIEW-ONCE LEAK*\n\n` +
-                            `👤 *From:* @${quoted.sender.split('@')[0]}\n` +
                             `📝 *Caption:* ${mediaData.caption || "No caption"}\n\n` +
                             `*MASTER ENGINE 2026* 🇰🇪`;
 
+            const finalType = mediaType.replace('Message', ''); // 'image' or 'video'
+            
             await conn.sendMessage(m.from, {
-                [mediaType.replace('Message', '')]: buffer,
-                caption: caption,
-                mentions: [quoted.sender]
+                [finalType]: buffer,
+                caption: caption
             }, { quoted: m });
 
             await m.react("✅");
 
         } catch (e) {
-            console.error("VV Error:", e);
-            m.reply("⚠️ *Error:* Failed to retrieve the media. It might have expired.");
+            console.error(e);
+            m.reply(`❌ *Error:* ${e.message}`);
         }
     }
 };
