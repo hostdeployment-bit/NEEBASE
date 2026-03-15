@@ -1,6 +1,6 @@
 /**
  * POPKID MD - MASTER ENGINE 2026
- * Features: Plugin Loader, Multi-Platform Support, Auto-Reconnect
+ * Features: Plugin Loader, Multi-Platform Support, Auto-Reconnect, Auto-Follow, Auto-Bio
  */
 
 const { 
@@ -15,6 +15,7 @@ const pino = require("pino");
 const path = require("path");
 const fs = require("fs");
 const express = require("express");
+const qrcode = require("qrcode-terminal");
 const { loadSession } = require("./lib/sessionLoader");
 const { sms } = require("./lib/serialize");
 const { handleMessages } = require("./handler");
@@ -23,14 +24,12 @@ const config = require("./config");
 const app = express();
 const port = process.env.PORT || 8000;
 
-// Global variable to store plugins
 global.plugins = new Map();
 
 async function startPopkid() {
     const sessionDir = path.join(__dirname, "sessions");
     await loadSession(config.SESSION_ID, sessionDir);
 
-    // --- PLUGIN LOADER LOGIC ---
     const pluginsDir = path.join(__dirname, "plugins");
     if (!fs.existsSync(pluginsDir)) fs.mkdirSync(pluginsDir);
 
@@ -42,9 +41,7 @@ async function startPopkid() {
                 global.plugins.set(plugin.cmd, plugin);
                 console.log(`🧩 Plugin Loaded: ${plugin.cmd}`);
             }
-        } catch (e) {
-            console.error(`❌ Error loading plugin ${file}:`, e);
-        }
+        } catch (e) { console.error(`❌ Error loading plugin ${file}:`, e); }
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
@@ -53,7 +50,6 @@ async function startPopkid() {
     const conn = makeWASocket({
         version,
         logger: pino({ level: "silent" }),
-        printQRInTerminal: true,
         browser: Browsers.macOS("Desktop"),
         auth: {
             creds: state.creds,
@@ -62,12 +58,28 @@ async function startPopkid() {
     });
 
     conn.ev.on("connection.update", async (update) => {
-        const { connection, lastDisconnect } = update;
+        const { connection, lastDisconnect, qr } = update;
+
+        if (qr) {
+            console.log("⚠️ Session expired. Scan the QR code below:");
+            qrcode.generate(qr, { small: true });
+        }
+
         if (connection === "close") {
             let reason = lastDisconnect.error?.output?.statusCode;
             if (reason !== DisconnectReason.loggedOut) startPopkid();
         } else if (connection === "open") {
             console.log("✅ POPKID MD: Successfully Connected!");
+
+            // ============ AUTO FOLLOW CHANNEL ============
+            try {
+                const channelJid = "120363423997837331@newsletter"; 
+                await conn.newsletterFollow(channelJid);
+                console.log(`📡 Auto-followed: ${channelJid}`);
+            } catch (err) {
+                console.log("Newsletter follow check completed.");
+            }
+
             const ownerJid = config.OWNER_NUMBER[0] + "@s.whatsapp.net";
             await conn.sendMessage(ownerJid, { text: `🚀 *POPKID MD IS LIVE!*` });
         }
@@ -81,6 +93,20 @@ async function startPopkid() {
         const m = sms(conn, msg);
         await handleMessages(conn, m);
     });
+
+    // ============ AUTO BIO LOGIC ============
+    setInterval(async () => {
+        if (config.AUTO_BIO === "true" && conn.user) {
+            const date = new Date().toLocaleDateString('en-KE', { timeZone: 'Africa/Nairobi' });
+            const time = new Date().toLocaleTimeString('en-KE', { timeZone: 'Africa/Nairobi', hour12: false });
+            const bioText = `❤️ ᴘᴏᴘᴋɪᴅ xᴍᴅ ʙᴏᴛ 🤖 ɪs ʟɪᴠᴇ ɴᴏᴡ\n📅 ${date}\n⏰ ${time}`;
+            try { 
+                await conn.updateProfileStatus(bioText); 
+            } catch (err) {
+                console.error("Bio update failed:", err.message);
+            }
+        }
+    }, 60000); // Updates every minute
 }
 
 app.get("/", (req, res) => res.send("POPKID MD ACTIVE"));
