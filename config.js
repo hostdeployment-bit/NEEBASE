@@ -10,6 +10,6 @@ module.exports = {
     MODE: process.env.MODE || "public",
     ALWAYS_ONLINE: process.env.ALWAYS_ONLINE || "true",
     AUTO_TYPING: process.env.AUTO_TYPING || "true",
-    AUTO_RECORDING: process.env.AUTO_RECORDING || "true",
+    AUTO_RECORDING: process.env.AUTO_RECORDING || "false",
     AUTO_REACT: process.env.AUTO_REACT || "true"
 }
