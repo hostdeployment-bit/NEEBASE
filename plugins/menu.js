@@ -3,8 +3,8 @@ const config = require("../config");
 module.exports = {
     cmd: "menu",
     alias: ["help", "list"],
-    desc: "Displays the bot command list",
-    async execute(conn, m, { pushName, isOwner }) {
+    desc: "Displays the categorized bot command list",
+    async execute(conn, m, { pushname, isOwner }) {
         const uptime = process.uptime();
         const hours = Math.floor(uptime / 3600);
         const minutes = Math.floor((uptime % 3600) / 60);
@@ -14,35 +14,40 @@ module.exports = {
         let menuText = `╔════════════════╗\n`;
         menuText += `  🚀 *POPKID-MD DASHBOARD* \n`;
         menuText += `╠════════════════╣\n`;
-        menuText += ` 👤 *User:* ${pushName}\n`;
+        menuText += ` 👤 *User:* ${pushname}\n`;
         menuText += ` 🕒 *Uptime:* ${hours}h ${minutes}m ${seconds}s\n`;
         menuText += ` 🔑 *Prefix:* [ ${config.PREFIX} ]\n`;
-        menuText += ` 🌍 *Mode:* ${isOwner ? 'Developer' : 'Public'}\n`;
+        menuText += ` 🌍 *Mode:* ${config.MODE}\n`;
         menuText += `╚════════════════╝\n\n`;
 
-        // 🤖 Dynamic Command Collector
-        menuText += `🛠 *AVAILABLE COMMANDS*\n`;
+        // --- Organize Commands by Category ---
+        const categories = {};
         
-        if (global.plugins.size > 0) {
-            // Sort plugins alphabetically
-            const sortedPlugins = Array.from(global.plugins.values()).sort((a, b) => a.cmd.localeCompare(b.cmd));
-            
-            sortedPlugins.forEach((plugin) => {
-                // Simplified to only show the command
-                menuText += ` ├ ${config.PREFIX}${plugin.cmd}\n`;
-            });
-        } else {
-            menuText += ` ├ No plugins loaded.\n`;
-        }
+        global.plugins.forEach((plugin) => {
+            const cat = plugin.category ? plugin.category.toUpperCase() : "OTHERS";
+            if (!categories[cat]) {
+                categories[cat] = [];
+            }
+            categories[cat].push(plugin.cmd);
+        });
 
-        menuText += `\n⚙️ *SYSTEM COMMANDS*\n`;
+        // --- Build Categorized List ---
+        const categoryKeys = Object.keys(categories).sort();
+        
+        categoryKeys.forEach((cat) => {
+            menuText += `*──『 ${cat} 』──*\n`;
+            categories[cat].sort().forEach((cmd) => {
+                menuText += ` ├ ${config.PREFIX}${cmd}\n`;
+            });
+            menuText += `\n`;
+        });
+
+        menuText += `⚙️ *SYSTEM*\n`;
         menuText += ` ├ ${config.PREFIX}ping\n`;
-        menuText += ` ├ ${config.PREFIX}runtime\n`;
-        menuText += ` ├ ${config.PREFIX}restart\n`;
-        menuText += `\n╚════════════════╝\n`;
+        menuText += ` ├ ${config.PREFIX}runtime\n\n`;
         menuText += `*Created by Popkid Kenya* 🇰🇪`;
 
-        // Sending with a professional External Ad Reply
+        // Sending with the External Ad Reply layout
         await conn.sendMessage(m.from, { 
             image: { url: "https://files.catbox.moe/j9ia5c.png" }, 
             caption: menuText,
