@@ -7,34 +7,38 @@ module.exports = {
     category: "tools",
     async execute(conn, m) {
         try {
-            // 1. Get the content of the replied message (same as your setpp logic)
+            // 1. Target the replied message
             const quotedMsg = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
             if (!quotedMsg) return m.reply("❌ *Please reply to a View-Once message!*");
 
-            // 2. Identify the View-Once container
-            const isViewOnce = quotedMsg.viewOnceMessageV2 || quotedMsg.viewOnceMessage;
-            if (!isViewOnce) return m.reply("❌ *That is not a View-Once message.*");
+            // 2. Locate the media content (It can be inside different wrappers)
+            let mediaContent = quotedMsg.viewOnceMessageV2?.message || 
+                               quotedMsg.viewOnceMessage?.message || 
+                               quotedMsg;
 
-            // 3. Extract actual media content (Image or Video)
-            const mediaContent = isViewOnce.message;
-            const mediaType = getContentType(mediaContent); // 'imageMessage' or 'videoMessage'
-            const mediaData = mediaContent[mediaType];
+            let type = getContentType(mediaContent);
+            let mediaData = mediaContent[type];
+
+            // 3. Validation: Check if it's truly a View-Once (internal flag)
+            const isVO = mediaData?.viewOnce || quotedMsg.viewOnceMessage || quotedMsg.viewOnceMessageV2;
+            
+            if (!isVO) return m.reply("❌ *That is not a View-Once message.*");
 
             await m.react("⏳");
 
-            // 4. Download media stream (Same logic as your setpp)
-            const stream = await downloadContentFromMessage(mediaData, mediaType.replace('Message', ''));
+            // 4. Download Logic (Compatible with WhiskeySockets)
+            const stream = await downloadContentFromMessage(mediaData, type.replace('Message', ''));
             let buffer = Buffer.from([]);
             for await (const chunk of stream) {
                 buffer = Buffer.concat([buffer, chunk]);
             }
 
-            // 5. Send back as permanent media
+            // 5. Leak it back to the chat
             const caption = `🔓 *POPKID-MD VIEW-ONCE LEAK*\n\n` +
                             `📝 *Caption:* ${mediaData.caption || "No caption"}\n\n` +
                             `*MASTER ENGINE 2026* 🇰🇪`;
 
-            const finalType = mediaType.replace('Message', ''); // 'image' or 'video'
+            const finalType = type.replace('Message', ''); // 'image' or 'video'
             
             await conn.sendMessage(m.from, {
                 [finalType]: buffer,
@@ -45,7 +49,7 @@ module.exports = {
 
         } catch (e) {
             console.error(e);
-            m.reply(`❌ *Error:* ${e.message}`);
+            m.reply("❌ *Error:* Failed to leak. The media might have already been opened or expired.");
         }
     }
 };
