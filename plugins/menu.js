@@ -1,5 +1,4 @@
 const config = require("../config");
-const os = require("os");
 
 module.exports = {
     cmd: "menu",
@@ -12,6 +11,7 @@ module.exports = {
         const minutes = Math.floor((uptime % 3600) / 60).toString().padStart(2, '0');
         const seconds = Math.floor(uptime % 60).toString().padStart(2, '0');
         
+        // 2. Count total commands from the global.plugins Map
         const totalCommands = global.plugins.size;
         const ping = Date.now() - (m.messageTimestamp * 1000);
 
@@ -24,7 +24,7 @@ module.exports = {
         menuText += `┃ 🌍 𝙼𝚘𝚍𝚎: ${config.MODE}\n`;
         menuText += `╰━━━━━━━━━━━━━━━━⊷\n\n`;
 
-        // 2. Organize Commands by Category
+        // 3. Organize Commands by Category
         const categories = {};
         global.plugins.forEach((plugin) => {
             if (!plugin.cmd) return;
@@ -33,11 +33,12 @@ module.exports = {
             categories[cat].push(plugin.cmd);
         });
 
-        // 3. Build Categorized List
+        // 4. Build Categorized List
         const categoryKeys = Object.keys(categories).sort();
         
         categoryKeys.forEach((cat) => {
             menuText += `╔══✪  『 *${cat}* 』\n`;
+            
             const sortedCmds = categories[cat].sort();
             sortedCmds.forEach((cmd, index) => {
                 const isLast = index === sortedCmds.length - 1;
@@ -51,15 +52,15 @@ module.exports = {
         menuText += `⚡ 𝙿𝚒𝚗𝚐: ${ping < 0 ? '0' : ping}𝚖𝚜\n`;
         menuText += `🇰🇪 *ᴘᴏᴘᴋɪᴅ ᴋᴇɴʏᴀ*`;
 
-        // 4. Sending as Text with CLEAN ContextInfo (Works for everyone)
+        // 5. THE FIX: Sending with Clean ContextInfo (Matches Uptime style)
         await conn.sendMessage(m.from, { 
             text: menuText,
             contextInfo: {
                 mentionedJid: [m.sender],
-                // Removed forwardingScore and isForwarded to prevent spam-blocking
+                // We removed isForwarded and forwardingScore so everyone can see it
                 externalAdReply: {
                     title: "ᴘᴏᴘᴋɪᴅ-ᴍᴅ ᴀᴜᴛᴏᴍᴀᴛɪᴏɴ",
-                    body: `Master Engine Active | Latency: ${ping < 0 ? '0' : ping}ms`,
+                    body: `Latency: ${ping < 0 ? '0' : ping}ms | Status: Active`,
                     thumbnailUrl: "https://files.catbox.moe/j9ia5c.png",
                     sourceUrl: "https://whatsapp.com/channel/0029VacgxK96hENmSRMRxx1r",
                     mediaType: 1,
