@@ -1,4 +1,5 @@
-const { getContentType } = require("@whiskeysockets/baileys");
+const { getContentType, downloadContentFromMessage } = require("@whiskeysockets/baileys");
+const Jimp = require("jimp");
 
 module.exports = {
     cmd: "setpp",
@@ -8,45 +9,39 @@ module.exports = {
     isOwner: true,
     async execute(conn, m) {
         try {
-            // 1. Manually extract the quoted message from the raw source
             const messageContent = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-            
-            if (!messageContent) {
-                return m.reply("❌ Please reply to an image!");
-            }
+            if (!messageContent) return m.reply("❌ Please reply to an image!");
 
-            // 2. Look for the image data inside the raw object
             const type = getContentType(messageContent);
-            const isImage = type === 'imageMessage' || 
-                            messageContent?.imageMessage || 
-                            messageContent?.documentMessage?.mimetype?.includes('image');
+            const imageMsg = messageContent.imageMessage || messageContent.documentMessage;
 
-            if (!isImage) {
-                return m.reply("❌ The bot sees the reply but doesn't find a photo. Make sure you are replying to a Gallery image.");
+            if (!imageMsg || !/image/.test(imageMsg.mimetype)) {
+                return m.reply("❌ The bot doesn't find a photo in that reply.");
             }
 
             await m.react("⏳");
 
-            // 3. Use the raw download provider
-            const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
-            const imageMsg = messageContent.imageMessage || messageContent.documentMessage;
-            
+            // 1. Download raw buffer
             const stream = await downloadContentFromMessage(imageMsg, 'image');
             let buffer = Buffer.from([]);
             for await (const chunk of stream) {
                 buffer = Buffer.concat([buffer, chunk]);
             }
 
-            // 4. Force Update
+            // 2. Process image with Jimp to make it a square (WhatsApp requirement)
+            const image = await Jimp.read(buffer);
+            const resBuffer = await image.getBufferAsync(Jimp.MIME_JPEG);
+
+            // 3. Update PP
             const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-            await conn.updateProfilePicture(botJid, buffer);
+            await conn.updateProfilePicture(botJid, resBuffer);
             
             await m.react("✅");
-            m.reply("✅ *POPKID-MD* PP successfully forced!");
+            m.reply("✅ *POPKID-MD* Profile Picture Updated!");
 
         } catch (e) {
-            console.error("Critical SetPP Error:", e);
-            m.reply(`❌ Internal Error: ${e.message}`);
+            console.error(e);
+            m.reply(`❌ Error: ${e.message}. Ensure 'npm install jimp' was run.`);
         }
     }
 };
