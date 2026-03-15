@@ -5,6 +5,7 @@ module.exports = {
     cmd: "ping",
     alias: ["speed", "p"],
     desc: "Check bot speed and server status",
+    category: "system", // Added to match your categorized menu
     async execute(conn, m) {
         const start = performance.now();
         
@@ -18,12 +19,15 @@ module.exports = {
         const totalMem = (os.totalmem() / (1024 * 1024 * 1024)).toFixed(2);
         const freeMem = (os.freemem() / (1024 * 1024 * 1024)).toFixed(2);
         const usedMem = (totalMem - freeMem).toFixed(2);
-        const cpuModel = os.cpus()[0].model.split(' ')[0]; // Basic CPU info
+        
+        // Handling CPU model display safely
+        const cpus = os.cpus();
+        const cpuModel = cpus && cpus.length > 0 ? cpus[0].model.split(' ')[0] : "Generic";
 
         const response = `🏓 *PONG!* \n\n` +
             `🚀 *Latency:* ${latency}ms\n` +
-            `💻 *Server:* ${os.platform()} (${cpuModel})\n` +
-            `🧠 *RAM:* ${usedMem}GB / ${totalMem}GB\n\n` +
+            `💻 *Platform:* ${os.platform()} (${cpuModel})\n` +
+            `🧠 *RAM Usage:* ${usedMem}GB / ${totalMem}GB\n\n` +
             `_POPKID-MD is running smoothly!_`;
 
         // Edit the previous message with the results
