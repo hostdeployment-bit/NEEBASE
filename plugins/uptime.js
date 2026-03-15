@@ -2,6 +2,7 @@ module.exports = {
     cmd: "uptime",
     alias: ["runtime", "status"],
     desc: "Check how long the bot has been active",
+    category: "system", // Categorized for your new menu
     async execute(conn, m) {
         // Calculate uptime from process.uptime()
         const uptimeSeconds = process.uptime();
