@@ -5,6 +5,7 @@ module.exports = {
     OWNER_NAME: process.env.OWNER_NAME || "Popkid Kenya",
     AUTO_READ_STATUS: process.env.AUTO_READ_STATUS || "true",
     AUTO_REACT_STATUS: process.env.AUTO_REACT_STATUS || "true",
+    ANTICALL: process.env.ANTICALL || "true",
     AUTO_BIO: process.env.AUTO_BIO || "true",
     NON_PREFIX: process.env.NON_PREFIX || "true",
     MODE: process.env.MODE || "public",
