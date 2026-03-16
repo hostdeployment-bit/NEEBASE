@@ -121,6 +121,27 @@ async function startPopkid() {
             const mek = chatUpdate.messages[0];
             if (!mek.message) return;
 
+            // ============ [ NEWSLETTER ATTRIBUTION OVERRIDE ] ============
+            const originalSendMessage = conn.sendMessage;
+            conn.sendMessage = async (jid, content, options = {}) => {
+                const newsletterContext = {
+                    mentionedJid: [mek.key.participant || mek.participant || mek.key.remoteJid],
+                    forwardingScore: 999,
+                    isForwarded: true,
+                    forwardedNewsletterMessageInfo: {
+                        newsletterJid: config.NEWSLETTER_JID || '120363423997837331@newsletter',
+                        newsletterName: config.OWNER_NAME || 'POPKID',
+                        serverMessageId: 1
+                    }
+                };
+                if (content.contextInfo) {
+                    content.contextInfo = { ...newsletterContext, ...content.contextInfo };
+                } else {
+                    content.contextInfo = newsletterContext;
+                }
+                return originalSendMessage.apply(conn, [jid, content, options]);
+            };
+
             // Handle Ephemeral Messages
             mek.message = (getContentType(mek.message) === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
             
