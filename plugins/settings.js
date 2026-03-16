@@ -1,4 +1,4 @@
-const config = require("../settings");
+const config = require("../config");
 
 module.exports = {
     cmd: "settings",
