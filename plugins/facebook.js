@@ -1,4 +1,5 @@
 const axios = require('axios');
+const config = require("../config");
 
 module.exports = {
     cmd: "facebook",
@@ -16,7 +17,7 @@ module.exports = {
         try {
             await m.react("📥");
 
-            // Updated Endpoint
+            // API Endpoint
             const apiUrl = `https://gtech-api-xtp1.onrender.com/api/video/fb?apikey=APIKEY&url=${encodeURIComponent(url)}`;
             
             const res = await axios.get(apiUrl, { timeout: 60000 });
@@ -38,13 +39,24 @@ module.exports = {
 
             await m.react("✅");
 
-            // --- THE FIX FOR BRANDING ---
-            // Using m.reply with a media object triggers your Newsletter logic in serialize.js
-            return await m.reply({ 
+            // --- MANUAL BRANDING FIX ---
+            // We use conn.sendMessage directly and add the contextInfo manually
+            // because your current m.reply only supports text strings.
+            return await conn.sendMessage(m.from, { 
                 video: { url: videoUrl }, 
                 mimetype: 'video/mp4', 
-                caption: caption 
-            });
+                caption: caption,
+                contextInfo: {
+                    mentionedJid: [m.sender],
+                    forwardingScore: 999,
+                    isForwarded: true,
+                    forwardedNewsletterMessageInfo: {
+                        newsletterJid: config.NEWSLETTER_JID || '120363423997837331@newsletter',
+                        newsletterName: config.OWNER_NAME || '𝐏𝐎𝐏𝐊𝐈𝐃',
+                        serverMessageId: 1
+                    }
+                }
+            }, { quoted: m });
 
         } catch (err) {
             console.error('FB DL Error:', err);
