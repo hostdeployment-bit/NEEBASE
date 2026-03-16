@@ -15,13 +15,17 @@ module.exports = {
 
             const targetJid = target.replace(/:[0-9]+@/, '@')
 
+            // --- FETCHING THE USERNAME ---
+            const groupMetadata = await conn.groupMetadata(m.from)
+            const user = groupMetadata.participants.find(p => p.id === targetJid)
+            const username = user?.notify || user?.verifiedName || jidToNum(targetJid)
+
             await conn.groupParticipantsUpdate(m.from, [targetJid], 'demote')
             await m.react("⬇️")
 
-            // --- STYLISH ARRANGEMENT ---
             const successText = `✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐔𝐏𝐃𝐀𝐓𝐄* ✨\n\n` +
                                 `🛡️ *Role:* Admin Removal\n` +
-                                `👤 *User:* @${jidToNum(targetJid)}\n` +
+                                `👤 *User:* ${username}\n` +
                                 `✅ *Status:* Successfully Demoted\n\n` +
                                 `> *Mission Completed* 📉`;
 
