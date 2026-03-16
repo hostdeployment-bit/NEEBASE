@@ -1,7 +1,6 @@
 /**
  * POPKID-MD — ROLE MANAGEMENT SYSTEM
- * Logic: Vanguard MD (High Stability)
- * Base: Popkid Master Engine
+ * Logic: Vanguard MD (Fixed for Popkid Base)
  */
 
 const { isBotAdmin, isSenderAdmin, jidToNum } = require('../lib/utils')
@@ -13,45 +12,45 @@ module.exports = {
     category: "admin",
     isGroup: true,
     async execute(conn, m, { command, isOwner }) {
-        const jid = m.from
-        const sender = m.sender
-
-        // ── 1. Admin + Sudo Checks (Vanguard Logic) ──
-        const senderIsAdmin = await isSenderAdmin(conn, jid, sender)
-        if (!isOwner && !senderIsAdmin) return m.reply('❌ Only admins can use this command!')
-
-        const botAdmin = await isBotAdmin(conn, jid)
-        if (!botAdmin) return m.reply('❌ I need to be an admin to ' + command + ' members!')
-
-        // ── 2. Target Identification ──
-        let target = m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || null
-        if (!target && m.message?.extendedTextMessage?.contextInfo?.participant) {
-            target = m.message.extendedTextMessage.contextInfo.participant
-        }
-
-        if (!target) return m.reply(`❌ Mention or reply to someone to ${command}!\n_Example: .${command} @user_`)
-
-        // ── 3. Normalization Fix (From Vanguard Demote) ──
-        // This ensures LID and JID formats match perfectly during the update
-        const normalize = (j) => (j || '').replace(/:[0-9]+@/, '@')
-        const botJid = normalize(conn.user?.id)
-        const targetClean = normalize(target)
+        // --- FIX: Ensure 'command' is not undefined ---
+        const cmdAction = m.body.slice(1).trim().split(/ +/).shift().toLowerCase();
+        const actionName = cmdAction === 'promote' ? 'promote' : 'demote';
         
-        // Use the raw ID if it's the bot, otherwise use the target
-        const targetJid = targetClean === botJid ? conn.user?.id : target
+        const jid = m.from;
+        const sender = m.sender;
 
-        // ── 4. Execution ──
         try {
-            const action = command === "promote" ? "promote" : "demote"
-            await conn.groupParticipantsUpdate(jid, [targetJid], action)
+            // ── 1. Admin Checks (Using our Shielded Utils) ──
+            const botAdmin = await isBotAdmin(conn, jid);
+            if (!botAdmin) return m.reply(`❌ I need to be an admin to ${actionName} members!`);
+
+            const senderIsAdmin = await isSenderAdmin(conn, jid, sender);
+            if (!isOwner && !senderIsAdmin) return m.reply(`❌ Only admins can use this command!`);
+
+            // ── 2. Target Identification ──
+            let target = m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || 
+                         m.message?.extendedTextMessage?.contextInfo?.participant;
+
+            if (!target) return m.reply(`❌ Mention or reply to someone to ${actionName}!\n_Example: .${actionName} @user_`);
+
+            // ── 3. Normalization (LID/JID Fix) ──
+            const normalize = (j) => (j || '').replace(/:[0-9]+@/, '@');
+            const botJid = normalize(conn.user?.id);
+            const targetClean = normalize(target);
+            const targetJid = targetClean === botJid ? conn.user?.id : target;
+
+            // ── 4. Execution ──
+            await conn.groupParticipantsUpdate(jid, [targetJid], actionName);
             
-            await m.react("✅")
+            await m.react("✅");
             await m.reply({
-                text: '✅ _Mission Completed Successfully_',
+                text: `✅ _Mission Completed: @${jidToNum(targetJid)} is now ${actionName}d!_`,
                 mentions: [targetJid],
-            })
+            });
+
         } catch (err) {
-            await m.reply('❌ Failed to ' + command + ': Ensure I am admin and not targeting the Creator.')
+            console.error(err);
+            await m.reply(`❌ Failed to ${actionName}: Target might be Group Creator or already has that role.`);
         }
     }
 }
