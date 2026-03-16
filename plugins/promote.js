@@ -1,6 +1,6 @@
 /**
- * POPKID-MD POWER-ADMIN SYSTEM
- * This version uses strict string matching to fix LID/JID mismatches.
+ * POPKID-MD POWER-ADMIN SYSTEM (STALE-CACHE FIX)
+ * This version forces a metadata refresh to ensure the Admin Badge is recognized.
  */
 
 module.exports = {
@@ -13,31 +13,34 @@ module.exports = {
         try {
             const from = m.from;
             
-            // 1. Get Bot's clean number
-            const botNumber = conn.user.id.replace(/:.*@/, "@").split('@')[0];
-            const senderNumber = m.sender.replace(/:.*@/, "@").split('@')[0];
+            // 1. Get Bot's clean number (The 'me' ID)
+            const botNumber = conn.user.id.split(':')[0];
+            const senderNumber = m.sender.split(':')[0];
 
-            // 2. Fetch Metadata
-            const groupMetadata = await conn.groupMetadata(from);
+            // 2. FORCE REFRESH: Fetch metadata directly from WhatsApp servers
+            // This is the "secret sauce" to stop the stale cache error
+            const groupMetadata = await conn.groupMetadata(from).catch(() => null);
+            if (!groupMetadata) return m.reply("❌ Failed to fetch group data.");
+            
             const participants = groupMetadata.participants;
 
-            // 3. ROBUST ADMIN CHECK (Fixes the JID/LID bug)
-            // We search the participants by looking for the number, not the full JID string
-            const botInList = participants.find(p => p.id.includes(botNumber));
-            const senderInList = participants.find(p => p.id.includes(senderNumber));
+            // 3. ROBUST SEARCH: Find Bot and Sender by matching number strings
+            const botInList = participants.find(p => p.id.startsWith(botNumber));
+            const senderInList = participants.find(p => p.id.startsWith(senderNumber));
 
-            // Check if Bot is Admin
+            // --- THE REAL ADMIN CHECK ---
             if (!botInList || !botInList.admin) {
-                return m.reply("❌ *POPKID-MD Error:* Make me a **Group Admin** first so I can use my powers!");
+                // If it fails here, the bot definitely doesn't have the badge in WA's eyes
+                return m.reply("❌ *POPKID-MD Error:* I've checked the server, and I still don't have the **Admin Badge**. Please remove me and add me back as Admin.");
             }
 
-            // Check if Sender (You) is Admin OR the specific Owner number
-            const isOwner = senderNumber === "254732297194" || m.fromMe;
+            // Super-user bypass for you
+            const isOwner = senderNumber.includes("254732297194") || m.fromMe;
             if (!senderInList?.admin && !isOwner) {
-                return m.reply("❌ *Restricted:* You need to be an **Admin** to use this command.");
+                return m.reply("❌ *Restricted:* You need to be an **Admin** to use this.");
             }
 
-            // 4. IDENTIFY TARGET
+            // 4. TARGET SELECTION
             const target = m.message?.extendedTextMessage?.contextInfo?.participant || 
                            m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
 
@@ -48,15 +51,14 @@ module.exports = {
             
             await conn.groupParticipantsUpdate(from, [target], action);
             
-            // Success Feedback
             await m.react("✅");
             if (command !== "kick") {
-                m.reply(`✅ Action *${command}* successful for @${target.split('@')[0]}`, { mentions: [target] });
+                m.reply(`✅ *POPKID-MD:* ${command} successful for @${target.split('@')[0]}`, { mentions: [target] });
             }
 
         } catch (e) {
             console.error(e);
-            m.reply("⚠️ *Engine Error:* Action failed. Ensure the target is still in the group.");
+            m.reply("⚠️ *Engine Error:* Action failed. Try restarting the bot if I was just promoted.");
         }
     }
 };
