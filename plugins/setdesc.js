@@ -1,8 +1,8 @@
 const { isBotAdmin, isSenderAdmin } = require('../lib/utils')
 
 module.exports = {
-    cmd: "setname",
-    alias: ["setdesc"],
+    cmd: "setdesc",
+    alias: ["setdescription"],
     desc: "Change Group Name or Description",
     category: "admin",
     isGroup: true,
