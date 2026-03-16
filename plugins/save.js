@@ -3,26 +3,33 @@ const { getContentType, downloadContentFromMessage } = require("@whiskeysockets/
 module.exports = {
     cmd: "save",
     alias: ["getstatus", "downloadstatus"],
-    desc: "Download and save a contact's status",
+    desc: "Download status (Minimal)",
     category: "tools",
     async execute(conn, m) {
         try {
-            // 1. Check if you are replying to a status
             const quoted = m.message?.extendedTextMessage?.contextInfo?.quotedMessage;
-            if (!quoted) return m.reply("❌ *Please reply to the status you want to save!*");
+            if (!quoted) return m.reply("⚠️ *Select a status*");
 
-            // 2. Identify media type (Status can be Image, Video, or Text/Conversation)
             const type = getContentType(quoted);
-            
-            // If it's just a text status
+            const sender = m.message.extendedTextMessage.contextInfo.participant.split('@')[0];
+            const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
+
+            // --- ULTRA SIMPLE CAPTION ---
+            const caption = `📥 *Saved Status*\n` +
+                            `👤 *From:* @${sender}\n\n` +
+                            `> *Popkid Md Engine* 🇰🇪`;
+
+            // 1. Handle Text Status
             if (type === 'conversation' || type === 'extendedTextMessage') {
                 const statusText = quoted.conversation || quoted.extendedTextMessage.text;
-                const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-                await conn.sendMessage(botJid, { text: `📝 *SAVED STATUS TEXT:*\n\n${statusText}` });
-                return m.reply("✅ Text status saved to your DM!");
+                await conn.sendMessage(botJid, { 
+                    text: caption + `\n\n📝 *Text:*\n${statusText}`,
+                    mentions: [m.message.extendedTextMessage.contextInfo.participant]
+                });
+                return m.reply("✅ *Saved*");
             }
 
-            // 3. Handle Media Status (Photo/Video)
+            // 2. Handle Media Status
             if (/imageMessage|videoMessage/.test(type)) {
                 await m.react("⏳");
                 
@@ -33,24 +40,20 @@ module.exports = {
                     buffer = Buffer.concat([buffer, chunk]);
                 }
 
-                // 4. Send to your own DM
-                const botJid = conn.user.id.split(':')[0] + '@s.whatsapp.net';
                 const mediaType = type.replace('Message', '');
                 
                 await conn.sendMessage(botJid, {
                     [mediaType]: buffer,
-                    caption: `📥 *SAVED STATUS*\n\n👤 *From:* ${m.message.extendedTextMessage.contextInfo.participant.split('@')[0]}\n📝 *Caption:* ${mediaData.caption || "No caption"}`
+                    caption: caption,
+                    mentions: [m.message.extendedTextMessage.contextInfo.participant]
                 });
 
                 await m.react("✅");
-                return m.reply("✅ Status media sent to your DM!");
-            } else {
-                return m.reply("❌ The bot couldn't find media in that status.");
+                return m.reply("✅ *Saved to DM*");
             }
 
         } catch (e) {
-            console.error(e);
-            m.reply("⚠️ *Error:* Failed to save status. It may have expired or been deleted.");
+            m.reply("⚠️ *Error*");
         }
     }
 };
