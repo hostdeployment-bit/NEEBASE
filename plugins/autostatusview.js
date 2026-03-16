@@ -1,7 +1,7 @@
 const config = require("../config");
 
 module.exports = {
-    cmd: "autoread",
+    cmd: "autostatusview",
     desc: "Toggle Auto Read Status",
     category: "OWNER",
     isOwner: true,
