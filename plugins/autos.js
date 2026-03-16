@@ -1,58 +1,69 @@
 const config = require("../config");
 
-module.exports = {
-    cmd: "autostatusview",
-    alias: ["autoreact", "autotyping", "autorecording", "autobio", "nonprefix"],
-    desc: "Direct toggle for all engine features",
-    category: "OWNER",
-    isOwner: true,
-    async execute(conn, m, { text, command }) {
-        // --- MAPPING SHORT COMMANDS TO CONFIG KEYS ---
-        const cmdMap = {
-            "autostatusview": "AUTO_READ_STATUS",
-            "autoreact": "AUTO_REACT_STATUS",
-            "autotyping": "AUTO_TYPING",
-            "autorecording": "AUTO_RECORDING",
-            "autobio": "AUTO_BIO",
-            "nonprefix": "NON_PREFIX"
-        };
-
-        const targetConfig = cmdMap[command];
-        const input = text?.toLowerCase();
-
-        // 1. DASHBOARD (If you just type the command without on/off)
-        if (!input || (input !== 'on' && input !== 'off')) {
-            const status = config[targetConfig] === "true" ? "🟢 ᴀᴄᴛɪᴠᴇ" : "🔴 ɪɴᴀᴄᴛɪᴠᴇ";
-            return m.reply(
-                `✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐀𝐔𝐓𝐎* ✨\n` +
-                `══════════════════\n` +
-                `🤖 *ꜰᴇᴀᴛᴜʀᴇ:* ${command.toUpperCase()}\n` +
-                `📊 *ꜱᴛᴀᴛᴜꜱ:* ${status}\n` +
-                `══════════════════\n` +
-                `💡 _Usage: .${command} on | off_\n` +
-                `> 𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀𝗂ɴᴇ 🇰🇪`
-            );
-        }
-
-        // 2. TOGGLE LOGIC
-        if (input === 'on') {
-            config[targetConfig] = "true";
-            await m.react("✅");
-        } else {
-            config[targetConfig] = "false";
-            await m.react("❌");
-        }
-
-        // 3. SUCCESS CARD
-        const finalStatus = config[targetConfig] === "true" ? "🟢 ᴇɴᴀʙʟᴇᴅ" : "🔴 ᴅɪꜱᴀʙʟᴇᴅ";
-        const successMsg = 
-            `✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐂𝐎𝐍𝐅𝐈𝐆* ✨\n` +
-            `══════════════════\n` +
-            `✅ *${command.toUpperCase()}*\n` +
-            `ꜱᴛᴀᴛᴜꜱ ᴜᴘᴅᴀᴛᴇᴅ ᴛᴏ: ${finalStatus}\n` +
-            `══════════════════\n` +
-            `> ꜱᴇᴛᴛɪɴɢꜱ ᴀᴘᴘʟɪᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ 🚀`;
-
-        m.reply(successMsg);
+// --- HELPER FUNCTION FOR CLEAN UI ---
+const toggle = async (conn, m, key, name, text) => {
+    const input = text?.toLowerCase();
+    if (input !== 'on' && input !== 'off') {
+        const current = config[key] === "true" ? "🟢 ᴏɴ" : "🔴 ᴏꜰꜰ";
+        return m.reply(`✨ *${name}* ✨\n\n◦ *ᴄᴜʀʀᴇɴᴛ:* ${current}\n◦ *ᴜꜱᴀɢᴇ:* .${name.toLowerCase().replace(/ /g, '')} on/off`);
     }
+    
+    config[key] = input === 'on' ? "true" : "false";
+    await m.react(config[key] === "true" ? "✅" : "❌");
+    
+    const status = config[key] === "true" ? "🟢 ᴇɴᴀʙʟᴇᴅ" : "🔴 ᴅɪꜱᴀʙʟᴇᴅ";
+    return m.reply(`✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐔𝐏𝐃𝐀𝐓𝐄* ✨\n══════════════════\n✅ *${name}*\nꜱᴛᴀᴛᴜꜱ: ${status}\n══════════════════`);
 };
+
+// --- EXPORTING INDIVIDUAL COMMANDS ---
+module.exports = [
+    {
+        cmd: "autobio",
+        desc: "Toggle Auto Bio",
+        category: "OWNER",
+        isOwner: true,
+        async execute(conn, m, { text }) { await toggle(conn, m, "AUTO_BIO", "ᴀᴜᴛᴏ ʙɪᴏ", text); }
+    },
+    {
+        cmd: "autotyping",
+        desc: "Toggle Auto Typing",
+        category: "OWNER",
+        isOwner: true,
+        async execute(conn, m, { text }) { await toggle(conn, m, "AUTO_TYPING", "ᴀᴜᴛᴏ ᴛʏᴘɪɴɢ", text); }
+    },
+    {
+        cmd: "autorecording",
+        desc: "Toggle Auto Recording",
+        category: "OWNER",
+        isOwner: true,
+        async execute(conn, m, { text }) { await toggle(conn, m, "AUTO_RECORDING", "ᴀᴜᴛᴏ ʀᴇᴄᴏʀᴅɪɴɢ", text); }
+    },
+    {
+        cmd: "autostatusview",
+        desc: "Toggle Auto Read Status",
+        category: "OWNER",
+        isOwner: true,
+        async execute(conn, m, { text }) { await toggle(conn, m, "AUTO_READ_STATUS", "ᴀᴜᴛᴏ ʀᴇᴀᴅ", text); }
+    },
+    {
+        cmd: "autoreact",
+        desc: "Toggle Auto React Status",
+        category: "OWNER",
+        isOwner: true,
+        async execute(conn, m, { text }) { await toggle(conn, m, "AUTO_REACT_STATUS", "ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ", text); }
+    },
+    {
+        cmd: "nonprefix",
+        desc: "Toggle Non-Prefix Mode",
+        category: "OWNER",
+        isOwner: true,
+        async execute(conn, m, { text }) { await toggle(conn, m, "NON_PREFIX", "ɴᴏɴ-ᴘʀᴇꜰɪx", text); }
+    },
+    {
+        cmd: "alwaysonline",
+        desc: "Toggle Always Online",
+        category: "OWNER",
+        isOwner: true,
+        async execute(conn, m, { text }) { await toggle(conn, m, "ALWAYS_ONLINE", "ᴀʟᴡᴀʏꜱ ᴏɴʟɪɴᴇ", text); }
+    }
+];
