@@ -243,6 +243,10 @@ async function startPopkid() {
             }
 
             const plugin = global.plugins.get(command) || [...global.plugins.values()].find(p => p.alias && p.alias.includes(command));
+            
+            // --- BOT MAIN SWITCH LOGIC ---
+            if (config.BOT_OFF === "true" && !isOwner) return;
+
             if (plugin) {
                 if (!isCmd && config.NON_PREFIX !== "true") return;
                 if (plugin.isOwner && !isOwner) return m.reply("❌ Developer Restricted Command.");
