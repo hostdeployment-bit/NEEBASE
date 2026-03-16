@@ -1,72 +1,82 @@
 const axios = require('axios');
 const yts = require('yt-search');
 
+const DL_API = 'https://api.qasimdev.dpdns.org/api/loaderto/download';
+const API_KEY = 'xbps-install-Syu';
+
+// Helper for retry logic
+const wait = (ms) => new Promise(r => setTimeout(r, ms));
+
+const downloadWithRetry = async (url, retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+        try {
+            const { data } = await axios.get(DL_API, {
+                params: { apiKey: API_KEY, format: '360', url }, // '360' is more stable for APIs
+                timeout: 90000
+            });
+            if (data?.data?.downloadUrl) return data.data;
+            throw new Error('No download URL');
+        } catch (err) {
+            if (i === retries - 1) throw err;
+            await wait(5000); // Wait 5s before retrying
+        }
+    }
+    throw new Error('All download attempts failed');
+};
+
 module.exports = {
     cmd: "video",
     alias: ["ytmp4", "vid"],
-    desc: "Download and play videos from YouTube",
+    desc: "Download YouTube videos with retry logic",
     category: "DOWNLOAD",
     async execute(conn, m, { text }) {
         if (!text) return m.reply("🎬 *ᴜꜱᴀɢᴇ:* .video <song name or YouTube link>");
 
-        const DL_API = 'https://api.qasimdev.dpdns.org/api/loaderto/download';
-        const API_KEY = 'xbps-install-Syu';
-
         try {
-            let video;
+            let videoUrl, videoTitle, videoThumbnail;
             const query = text.trim();
 
-            // 1. Search Logic (Same as your working play command)
-            if (query.includes('youtube.com') || query.includes('youtu.be')) {
-                video = { url: query, title: "YouTube Video" };
+            // 1. Search / URL Logic
+            if (query.startsWith('http')) {
+                videoUrl = query;
             } else {
                 await m.react("🔍");
-                const search = await yts(query);
-                video = search.videos[0];
+                const { videos } = await yts(query);
+                if (!videos?.length) return m.reply("❌ *ɴᴏ ʀᴇꜱᴜʟᴛꜱ ꜰᴏᴜɴᴅ!*");
+                videoUrl = videos[0].url;
+                videoTitle = videos[0].title;
+                videoThumbnail = videos[0].thumbnail;
             }
-
-            if (!video) return m.reply("❌ *ɴᴏ ʀᴇꜱᴜʟᴛꜱ ꜰᴏᴜɴᴅ!*");
 
             // 2. Send Preview Card
             const preview = `🎬 *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐕𝐈𝐃𝐄𝐎* 🎬\n` +
                             `══════════════════\n` +
-                            `📌 *ᴛɪᴛʟᴇ:* ${video.title}\n` +
-                            `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'ɴ/ᴀ'}\n` +
-                            `🔗 *ʟɪɴᴋ:* ${video.url}\n` +
+                            `📌 *ᴛɪᴛʟᴇ:* ${videoTitle || 'ʏᴛ ᴠɪᴅᴇᴏ'}\n` +
+                            `⏳ _ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ... ᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ_ \n` +
                             `══════════════════\n` +
-                            `⏳ _ᴄᴏɴᴠᴇʀᴛɪɴɢ... ᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ_`;
+                            `> ᴘʀᴏᴄᴇꜱꜱɪɴɢ ᴡɪᴛʜ ʀᴇᴛʀʏ ᴇɴɢɪɴᴇ ⚙️`;
 
             await conn.sendMessage(m.from, {
-                image: { url: video.thumbnail || 'https://files.catbox.moe/j9ia5c.png' },
+                image: { url: videoThumbnail || 'https://files.catbox.moe/j9ia5c.png' },
                 caption: preview
             }, { quoted: m });
 
-            // 3. Optimized Download Logic
-            const { data } = await axios.get(DL_API, {
-                params: { 
-                    apiKey: API_KEY, 
-                    format: 'mp4', // Specifically asking for MP4
-                    url: video.url 
-                },
-                timeout: 300000, // Increased to 5 minutes for heavy video processing
-            });
+            // 3. Execute Download with Retry Engine
+            const videoData = await downloadWithRetry(videoUrl);
 
-            if (!data?.data?.downloadUrl) throw new Error('API_LIMIT');
-
-            // 4. Send the Video File
+            // 4. Send Video File
             await conn.sendMessage(m.from, {
-                video: { url: data.data.downloadUrl },
+                video: { url: videoData.downloadUrl },
                 mimetype: 'video/mp4',
-                fileName: `${video.title}.mp4`,
-                caption: `✅ *${video.title}* ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ.\n> 𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀ɪɴ𝖾 🇰🇪`
+                fileName: `${videoData.title || 'video'}.mp4`,
+                caption: `✅ *${videoData.title || 'ꜱᴜᴄᴄᴇꜱꜱ'}*\n\n> 𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀ɪɴ𝖾 🇰🇪`
             }, { quoted: m });
 
             await m.react("✅");
 
         } catch (err) {
             console.error(err);
-            // Friendly error message for the user
-            m.reply(`❌ *ᴅᴏᴡɴʟᴏᴀᴅ ꜰᴀɪʟᴇᴅ:*\n\n_ᴛʜᴇ ᴠɪᴅᴇᴏ ᴍɪɢʜᴛ ʙᴇ ᴛᴏᴏ ʟᴀʀɢᴇ ᴏʀ ᴛʜᴇ ᴀᴘɪ ɪꜱ ʙᴜꜱʏ. ᴘʟᴇᴀꜱᴇ ᴛʀʏ ᴀɢᴀɪɴ ɪɴ ᴀ ᴍᴏᴍᴇɴᴛ._`);
+            m.reply(`❌ *ᴅᴏᴡɴʟᴏᴀᴅ ꜰᴀɪʟᴇᴅ:* ᴀᴘɪ ɪꜱ ᴄᴜʀʀᴇɴᴛʟʏ ᴏᴠᴇʀʟᴏᴀᴅᴇᴅ. ᴛʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.`);
         }
     }
 };
