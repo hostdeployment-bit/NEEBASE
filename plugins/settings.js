@@ -7,27 +7,28 @@ module.exports = {
     category: "OWNER",
     isOwner: true,
     async execute(conn, m) {
+        // All settings grouped together
         const engine = [
-            { name: "ᴀᴜᴛᴏ ʀᴇᴀᴅ ꜱᴛᴀᴛᴜꜱ", val: config.AUTO_READ_STATUS },
-            { name: "ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ ꜱᴛᴀᴛᴜꜱ", val: config.AUTO_REACT_STATUS },
-            { name: "ᴀᴜᴛᴏ ᴛʏᴘɪɴɢ", val: config.AUTO_TYPING },
-            { name: "ᴀᴜᴛᴏ ʀᴇᴄᴏʀᴅɪɴɢ", val: config.AUTO_RECORDING },
-            { name: "ᴀᴜᴛᴏ ʙɪᴏ", val: config.AUTO_BIO },
-            { name: "ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ", val: config.AUTO_REACT },
-            { name: "ɴᴏɴ-ᴘʀᴇꜰɪx ᴍᴏᴅᴇ", val: config.NON_PREFIX },
-            { name: "ᴀʟᴡᴀʏꜱ ᴏɴʟɪɴᴇ", val: config.ALWAYS_ONLINE }
+            { name: "ʙᴏᴛ ᴍᴏᴅᴇ", val: config.MODE.toUpperCase() },
+            { name: "ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ", val: config.ANTIDELETE.toUpperCase() },
+            { name: "ᴀᴜᴛᴏ ʀᴇᴀᴅ ꜱᴛᴀᴛᴜꜱ", val: config.AUTO_READ_STATUS === "true" ? "🟢 ᴏɴ" : "🔴 ᴏꜰꜰ" },
+            { name: "ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ ꜱᴛᴀᴛᴜꜱ", val: config.AUTO_REACT_STATUS === "true" ? "🟢 ᴏɴ" : "🔴 ᴏꜰꜰ" },
+            { name: "ᴀᴜᴛᴏ ᴛʏᴘɪɴɢ", val: config.AUTO_TYPING === "true" ? "🟢 ᴏɴ" : "🔴 ᴏꜰꜰ" },
+            { name: "ᴀᴜᴛᴏ ʀᴇᴄᴏʀᴅɪɴɢ", val: config.AUTO_RECORDING === "true" ? "🟢 ᴏɴ" : "🔴 ᴏꜰꜰ" },
+            { name: "ᴀᴜᴛᴏ ʙɪᴏ", val: config.AUTO_BIO === "true" ? "🟢 ᴏɴ" : "🔴 ᴏꜰꜰ" },
+            { name: "ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ", val: config.AUTO_REACT === "true" ? "🟢 ᴏɴ" : "🔴 ᴏꜰꜰ" },
+            { name: "ɴᴏɴ-ᴘʀᴇꜰɪx ᴍᴏᴅᴇ", val: config.NON_PREFIX === "true" ? "🟢 ᴏɴ" : "🔴 ᴏꜰꜰ" },
+            { name: "ᴀʟᴡᴀʏꜱ ᴏɴʟɪɴᴇ", val: config.ALWAYS_ONLINE === "true" ? "🟢 ᴏɴ" : "🔴 ᴏꜰꜰ" }
         ];
 
         let dashboard = `╭══════════════════⊷\n` +
                         `║   ✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃* ✨\n` +
                         `╠══════════════════⊷\n` +
                         `║ 👤 *ᴏᴡɴᴇʀ:* ${config.OWNER_NAME}\n` +
-                        `║ 🌐 *ᴍᴏᴅᴇ:* ${config.MODE.toUpperCase()}\n` +
                         `╰══════════════════⊷\n\n`;
 
         engine.forEach((feat) => {
-            const state = feat.val === "true" ? "🟢 ᴏɴ" : "🔴 ᴏꜰꜰ";
-            dashboard += ` ◦ *${feat.name}:* ${state}\n`;
+            dashboard += ` ◦ *${feat.name}:* ${feat.val}\n`;
         });
 
         dashboard += `\n══════════════════⊷\n` +
