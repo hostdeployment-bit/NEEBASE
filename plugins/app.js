@@ -12,13 +12,12 @@ module.exports = {
         try {
             await m.react("🔍");
             
-            // 1. Search Logic
             const res = await pkg.apksearch(text);
-            if (!res?.data || !Array.isArray(res.data) || res.data.length === 0) {
+            if (!res?.data || res.data.length === 0) {
                 return m.reply("❌ *ɴᴏ ᴀᴘᴋꜱ ꜰᴏᴜɴᴅ.*");
             }
 
-            const results = res.data.slice(0, 10); // Limit to top 10 results
+            const results = res.data.slice(0, 10);
             let caption = `╭══════════════════⊷\n` +
                           `║   ✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐀𝐏𝐊 𝐒𝐓𝐎𝐑𝐄* ✨\n` +
                           `╠══════════════════⊷\n` +
@@ -32,64 +31,59 @@ module.exports = {
 
             caption += `> ꜱᴇʟᴇᴄᴛɪᴏɴ ᴇxᴘɪʀᴇꜱ ɪɴ 𝟧 ᴍɪɴᴜᴛᴇꜱ ⏳`;
 
-            // Send results with thumbnail of the first result
             const sentMsg = await conn.sendMessage(m.from, { 
                 image: { url: results[0].thumb }, 
                 caption: caption 
             }, { quoted: m });
 
-            // 2. Setup Listener (Concept from your provided script)
-            const timeout = setTimeout(async () => {
-                conn.ev.off('messages.upsert', listener);
-            }, 5 * 60 * 1000);
-
+            // Define the listener properly to prevent crashes
             const listener = async ({ messages }) => {
                 const msg = messages[0];
-                if (!msg.message || msg.key.remoteJid !== m.from) return;
+                if (!msg.message || !msg.key.remoteJid || msg.key.remoteJid !== m.from) return;
                 
                 const quotedMsg = msg.message?.extendedTextMessage?.contextInfo;
                 if (!quotedMsg || quotedMsg.stanzaId !== sentMsg.key.id) return;
 
-                const choice = parseInt(msg.message.conversation || msg.message.extendedTextMessage?.text);
+                const replyText = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
+                const choice = parseInt(replyText.trim());
                 
                 if (!isNaN(choice) && choice > 0 && choice <= results.length) {
-                    clearTimeout(timeout);
+                    // Stop listening immediately to save memory/prevent crash
                     conn.ev.off('messages.upsert', listener);
 
                     const selected = results[choice - 1];
                     await m.react("⏳");
-                    m.reply(`⬇️ *ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ:* ${selected.judul}...\n_ᴛʜɪꜱ ᴍᴀʏ ᴛᴀᴋᴇ ᴀ ᴍᴏᴍᴇɴᴛ._`);
+                    m.reply(`⬇️ *ᴅᴏᴡɴʟᴏᴀᴅɪɴɢ:* ${selected.judul}...`);
 
-                    // 3. Download Logic
-                    const apiUrl = `https://discardapi.dpdns.org/api/apk/dl/android1?apikey=guru&url=${encodeURIComponent(selected.link)}`;
-                    const dlRes = await axios.get(apiUrl);
-                    const apk = dlRes.data?.result;
+                    try {
+                        const apiUrl = `https://discardapi.dpdns.org/api/apk/dl/android1?apikey=guru&url=${encodeURIComponent(selected.link)}`;
+                        const dlRes = await axios.get(apiUrl);
+                        const apk = dlRes.data?.result;
 
-                    if (!apk?.url) return m.reply("❌ *ꜰᴀɪʟᴇᴅ ᴛᴏ ɢᴇᴛ ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋ.*");
+                        if (!apk?.url) return m.reply("❌ *ꜰᴀɪʟᴇᴅ ᴛᴏ ɢᴇᴛ ᴅᴏᴡɴʟᴏᴀᴅ ʟɪɴᴋ.*");
 
-                    const apkCaption = `📦 *𝐀𝐏𝐊 𝐃𝐎𝐖𝐍𝐋𝐎𝐀𝐃𝐄𝐃* 📦\n` +
-                                     `══════════════════\n` +
-                                     `📛 *ɴᴀᴍᴇ:* ${apk.name}\n` +
-                                     `⚖️ *ꜱɪᴢᴇ:* ${apk.size}\n` +
-                                     `📱 *ᴀɴᴅʀᴏɪᴅ:* ${apk.requirement}\n` +
-                                     `══════════════════\n` +
-                                     `> 𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀ɪɴ𝖾 🇰🇪`;
-
-                    await conn.sendMessage(m.from, { 
-                        document: { url: apk.url }, 
-                        fileName: `${apk.name}.apk`, 
-                        mimetype: 'application/vnd.android.package-archive', 
-                        caption: apkCaption 
-                    }, { quoted: msg });
-                    
-                    await m.react("✅");
+                        await conn.sendMessage(m.from, { 
+                            document: { url: apk.url }, 
+                            fileName: `${apk.name}.apk`, 
+                            mimetype: 'application/vnd.android.package-archive', 
+                            caption: `📦 *${apk.name}* ᴅᴏᴡɴʟᴏᴀᴅᴇᴅ.\n> 𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀ɪɴ𝖾 🇰🇪`
+                        }, { quoted: msg });
+                        
+                        await m.react("✅");
+                    } catch (e) {
+                        m.reply("❌ *ᴇʀʀᴏʀ ᴅᴜʀɪɴɢ ᴅᴏᴡɴʟᴏᴀᴅ.*");
+                    }
                 }
             };
 
             conn.ev.on('messages.upsert', listener);
 
+            // Force kill listener after 5 mins to prevent memory overload
+            setTimeout(() => {
+                conn.ev.off('messages.upsert', listener);
+            }, 300000);
+
         } catch (err) {
-            console.error(err);
             m.reply("❌ *ᴀᴘᴘ ꜱᴇᴀʀᴄʜ ꜰᴀɪʟᴇᴅ!*");
         }
     }
