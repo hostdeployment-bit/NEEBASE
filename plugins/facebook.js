@@ -3,27 +3,23 @@ const axios = require('axios');
 module.exports = {
     cmd: "facebook",
     alias: ["fb", "fbdl"],
-    desc: "Download Facebook videos with Pro Branding",
+    desc: "Download Facebook videos with Newsletter branding",
     category: "DOWNLOAD",
     async execute(conn, m, { text }) {
-        // --- SAFETY FIX FOR THE .MATCH ERROR ---
-        // This ensures 'url' is always a string before we test it with Regex
+        // --- SAFETY FIX: Ensure text is a string to prevent .match/split errors ---
         let url = (text && typeof text === 'string') ? text.trim() : "";
 
         if (!url) {
             return m.reply("📘 *ᴘᴏᴘᴋɪᴅ-ᴍᴅ ꜰʙ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\n*Usage:* .fb <facebook link>");
         }
 
-        if (!/facebook\.com|fb\.watch/i.test(url)) {
-            return m.reply("❌ *ɪɴᴠᴀʟɪᴅ ʟɪɴᴋ.* ᴘʟᴇᴀꜱᴇ ꜱᴇɴᴅ ᴀ ᴠᴀʟɪᴅ ꜰᴀᴄᴇʙᴏᴏᴋ ᴠɪᴅᴇᴏ ᴜʀʟ.");
-        }
-
         try {
             await m.react("📥");
 
+            // Updated Endpoint
             const apiUrl = `https://gtech-api-xtp1.onrender.com/api/video/fb?apikey=APIKEY&url=${encodeURIComponent(url)}`;
+            
             const res = await axios.get(apiUrl, { timeout: 60000 });
-
             const media = res?.data?.result?.media;
 
             if (!res.data.status || !media) {
@@ -42,7 +38,8 @@ module.exports = {
 
             await m.react("✅");
 
-            // Using the smart m.reply from your serialize.js for branding
+            // --- THE FIX FOR BRANDING ---
+            // Using m.reply with a media object triggers your Newsletter logic in serialize.js
             return await m.reply({ 
                 video: { url: videoUrl }, 
                 mimetype: 'video/mp4', 
@@ -52,7 +49,6 @@ module.exports = {
         } catch (err) {
             console.error('FB DL Error:', err);
             await m.react("❌");
-            // If the error persists, it might be the API endpoint itself failing
             return m.reply(`❌ *ᴅᴏᴡɴʟᴏᴀᴅ ꜰᴀɪʟᴇᴅ:*\n${err.message}`);
         }
     }
