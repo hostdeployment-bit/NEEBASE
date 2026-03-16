@@ -1,4 +1,4 @@
-const { downloadMediaMessage } = require('@whiskeysockets/baileys');
+const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
 const axios = require('axios');
 const FormData = require('form-data');
 const { fileTypeFromBuffer } = require('file-type');
@@ -10,34 +10,29 @@ module.exports = {
     category: "TOOLS",
     async execute(conn, m) {
         try {
-            // 1. Identify the actual media message (direct or quoted)
+            // 1. Identify source (Direct or Quoted) - Using deep-scan logic
             let q = m.quoted ? m.quoted : m;
+            let mime = (q.msg || q).mimetype || '';
             
-            // This part ensures we get the correct message type even if it's quoted
-            let mime = (q.msg || q).mimetype || q.mediaType || '';
-
-            if (!mime || mime === '') {
-                return m.reply("❌ Please reply to an image, video, audio, or document.");
+            if (!mime) {
+                return m.reply("❌ Please reply to an image, video, audio, or document!");
             }
 
             await m.react("⏳");
 
-            // 2. Download the media
-            const buffer = await downloadMediaMessage(
-                q,
-                'buffer',
-                {},
-                { 
-                    logger: conn.logger, 
-                    reuploadRequest: conn.updateMediaMessage 
-                }
-            );
+            // 2. DOWNLOAD LOGIC (Copied from your working sticker.js)
+            const messageType = mime.split('/')[0].replace('application', 'document');
+            const stream = await downloadContentFromMessage(q.msg || q, messageType);
+            let buffer = Buffer.from([]);
+            for await (const chunk of stream) {
+                buffer = Buffer.concat([buffer, chunk]);
+            }
 
-            if (!buffer) throw new Error("Failed to download media.");
+            if (!buffer || buffer.length === 0) throw new Error("Buffer is empty.");
 
             // 3. Size check (10MB)
             if (buffer.length > 10 * 1024 * 1024) {
-                return m.reply("✴️ ꜰɪʟᴇ ᴛᴏᴏ ʟᴀʀɢᴇ. ᴍᴀx ʟɪᴍɪᴛ ɪꜱ 10ᴍʙ.");
+                return m.reply("✴️ *ꜰɪʟᴇ ᴛᴏᴏ ʟᴀʀɢᴇ.* ᴍᴀx ʟɪᴍɪᴛ ɪꜱ 10ᴍʙ.");
             }
 
             // 4. Detect file type
@@ -59,14 +54,19 @@ module.exports = {
                 throw new Error("Invalid response from Catbox.");
             }
 
-            // 6. Final success output
+            // 6. Success Output
             const sizeMB = (buffer.length / (1024 * 1024)).toFixed(2);
             await m.react("🔗");
-            
-            return m.reply(`✅ *ᴜᴘʟᴏᴀᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟ*\n\n🔗 *ᴜʀʟ:* ${url}\n💾 *ꜱɪᴢᴇ:* ${sizeMB} MB\n\n> 𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀ɪɴ𝖾 🇰🇪`);
+
+            return m.reply(
+                `✅ *ᴜᴘʟᴏᴀᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟ*\n\n` +
+                `🔗 *ᴜʀʟ:* ${url}\n` +
+                `💾 *ꜱɪᴢᴇ:* ${sizeMB} MB\n\n` +
+                `> 𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀ɪɴ𝖾 🇰🇪`
+            );
 
         } catch (e) {
-            console.error("Upload Error:", e);
+            console.error("Catbox Upload Error:", e);
             await m.react("❌");
             return m.reply(`❌ *ᴜᴘʟᴏᴀᴅ ꜰᴀɪʟᴇᴅ:* ${e.message}`);
         }
