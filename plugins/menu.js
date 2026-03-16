@@ -4,7 +4,7 @@ const { formatUptime, getNairobiTime } = require("../lib/utils");
 module.exports = {
     cmd: "menu",
     alias: ["help", "list"],
-    desc: "Displays the bot command list",
+    desc: "Clean Image Menu",
     async execute(conn, m, { pushName, isOwner }) {
         const uptime = formatUptime(process.uptime());
         const time = getNairobiTime();
@@ -20,11 +20,6 @@ module.exports = {
                        `║ 📅  *ᴛɪᴍᴇ:* ${time}\n` +
                        `╰══════════════════⊷\n\n`;
 
-        // ─── ᴄᴏᴍᴍᴀɴᴅ ꜱᴇᴄᴛɪᴏɴ ───
-        menuText += `*╔══════════════════╗*\n` +
-                    `* 🛠️  ᴄᴏᴍᴍᴀɴᴅ ᴘᴀɴᴇʟ      *\n` +
-                    `*╚══════════════════╝*\n\n`;
-
         if (global.plugins.size > 0) {
             const categories = {};
             global.plugins.forEach(p => {
@@ -33,20 +28,22 @@ module.exports = {
                 categories[cat].push(p.cmd);
             });
 
+            // Building categories with Double Lines
             Object.keys(categories).sort().forEach(category => {
-                menuText += `*〔 ${category} 〕*\n`;
+                menuText += `══════════════════\n`;
+                menuText += `*❍ ${category} ❍*\n`;
+                menuText += `══════════════════\n`;
+                
                 categories[category].sort().forEach(cmd => {
-                    menuText += ` ◦ ${config.PREFIX}${cmd}\n`;
+                    menuText += ` ❍ ${config.PREFIX}${cmd}\n`;
                 });
                 menuText += `\n`;
             });
-        } else {
-            menuText += ` ◦  ɴᴏ ᴘʟᴜɢɪɴꜱ ᴅᴇᴛᴇᴄᴛᴇᴅ.\n\n`;
         }
 
         // ─── ꜱʏꜱᴛᴇᴍ ꜰᴏᴏᴛᴇʀ ───
         menuText += `══════════════════\n` +
-                    `⚙️  *ꜱʏꜱᴛᴇᴍ ꜱᴇᴛᴛɪɴɢꜱ*\n` +
+                    `⚙️  *ꜱʏꜱᴛᴇᴍ ᴘᴀɴᴇʟ*\n` +
                     `══════════════════\n` +
                     ` ◦ ${config.PREFIX}ping\n` +
                     ` ◦ ${config.PREFIX}runtime\n` +
@@ -54,20 +51,10 @@ module.exports = {
                     `══════════════════\n` +
                     `*© 𝟤𝟢𝟤𝟨 ᴘᴏᴘᴋɪᴅ ᴋᴇɴʏᴀ* 🇰🇪`;
 
+        // Sending with a simple image and caption
         await conn.sendMessage(m.from, { 
             image: { url: "https://files.catbox.moe/j9ia5c.png" }, 
-            caption: menuText,
-            contextInfo: {
-                externalAdReply: {
-                    title: "𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐎𝐅𝐅ɪ𝐂ɪ𝐀𝐋",
-                    body: "ᴇɴɢɪɴᴇ: ᴏᴘᴇʀᴀᴛɪᴏɴᴀʟ",
-                    thumbnailUrl: "https://files.catbox.moe/j9ia5c.png",
-                    sourceUrl: "https://github.com/popkidmd",
-                    mediaType: 1,
-                    showAdAttribution: true,
-                    renderLargerThumbnail: true
-                }
-            }
+            caption: menuText 
         }, { quoted: m });
     }
 };
