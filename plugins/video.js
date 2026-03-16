@@ -1,63 +1,71 @@
-const axios = require("axios");
-const yts = require("yt-search");
-const config = require("../config");
+const axios = require('axios');
+const yts = require('yt-search');
 
 module.exports = {
     cmd: "video",
-    alias: ["v", "mp4", "ytmp4"],
-    desc: "Download MP4 video using GiftedTech API",
-    category: "download",
-    async execute(conn, m, { text, pushname }) {
-        if (!text) return m.reply(`❌ Please provide a video name or link!\n\nExample: *${config.PREFIX}video* Madolla Kenna`);
+    alias: ["ytmp4", "playvid"],
+    desc: "Download and play videos from YouTube",
+    category: "DOWNLOAD",
+    async execute(conn, m, { text }) {
+        if (!text) return m.reply("🎬 *ᴜꜱᴀɢᴇ:* .video <song name or YouTube link>");
+
+        const DL_API = 'https://api.qasimdev.dpdns.org/api/loaderto/download';
+        const API_KEY = 'xbps-install-Syu';
 
         try {
-            // 1. React to show processing
-            await m.react("🎥");
+            let video;
+            const query = text.trim();
 
-            // 2. Search YouTube
-            const search = await yts(text);
-            const video = search.videos[0];
-            if (!video) return m.reply("❌ No results found on YouTube.");
-
-            const cleanUrl = video.url.split('&')[0];
-
-            const infoMsg = `🎥 *POPKID-MD VIDEO PLAYER*\n\n` +
-                `📝 *Title:* ${video.title}\n` +
-                `⏱️ *Duration:* ${video.timestamp}\n` +
-                `👤 *Requested by:* ${pushname}\n\n` +
-                `⏳ _Fetching 720p video from popkidapi..._`;
-
-            // 3. Send Thumbnail and Info
-            await conn.sendMessage(m.from, { 
-                image: { url: video.thumbnail }, 
-                caption: infoMsg 
-            }, { quoted: m });
-
-            // 4. Fetch Download Link
-            // API parameters: apikey=gifted, quality=720p
-            const apiURL = `https://api.giftedtech.co.ke/api/download/ytmp4?apikey=gifted&url=${encodeURIComponent(cleanUrl)}&quality=720p`;
-            const response = await axios.get(apiURL);
-            const data = response.data;
-
-            const downloadUrl = data.result?.download_url;
-
-            if (!downloadUrl) {
-                console.log("GiftedTech Video Error:", data);
-                return m.reply("❌ Failed to fetch video. The server might be busy or the file size is too large.");
+            // 1. Search Logic
+            if (query.includes('youtube.com') || query.includes('youtu.be')) {
+                video = { url: query, title: "YouTube Video" };
+            } else {
+                await m.react("🔍");
+                const search = await yts(query);
+                video = search.videos[0];
             }
 
-            // 5. Send the Video File
-            await conn.sendMessage(m.from, { 
-                video: { url: downloadUrl }, 
-                caption: `🎥 *${video.title}*\n\n*POPKID-MD MASTER ENGINE*`,
-                mimetype: "video/mp4"
+            if (!video) return m.reply("❌ *ɴᴏ ʀᴇꜱᴜʟᴛꜱ ꜰᴏᴜɴᴅ!*");
+
+            // 2. Send Preview Info
+            const preview = `🎬 *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐕𝐈𝐃𝐄𝐎* 🎬\n` +
+                            `══════════════════\n` +
+                            `📌 *ᴛɪᴛʟᴇ:* ${video.title}\n` +
+                            `⏱️ *ᴅᴜʀᴀᴛɪᴏɴ:* ${video.timestamp || 'ɴ/ᴀ'}\n` +
+                            `🔗 *ʟɪɴᴋ:* ${video.url}\n` +
+                            `══════════════════\n` +
+                            `⏳ _ᴄᴏɴᴠᴇʀᴛɪɴɢ ᴛᴏ ᴍᴘ𝟺... ᴘʟᴇᴀꜱᴇ ᴡᴀɪᴛ_`;
+
+            await conn.sendMessage(m.from, {
+                image: { url: video.thumbnail || 'https://files.catbox.moe/j9ia5c.png' },
+                caption: preview
+            }, { quoted: m });
+
+            // 3. Download Logic (Format: mp4)
+            const getVideo = async (url) => {
+                const { data } = await axios.get(DL_API, {
+                    params: { apiKey: API_KEY, format: 'mp4', url },
+                    timeout: 120000, // Videos take longer than audio
+                });
+                if (data?.data?.downloadUrl) return data.data;
+                throw new Error('ᴀᴘɪ ᴇʀʀᴏʀ');
+            };
+
+            const videoData = await getVideo(video.url);
+
+            // 4. Send Video File
+            await conn.sendMessage(m.from, {
+                video: { url: videoData.downloadUrl },
+                mimetype: 'video/mp4',
+                fileName: `${video.title}.mp4`,
+                caption: `✅ *${video.title}* \n> 𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀ɪɴ𝖾 🇰🇪`
             }, { quoted: m });
 
             await m.react("✅");
 
-        } catch (e) {
-            console.error("GiftedTech Video Error:", e.message);
-            m.reply("⚠️ An error occurred while fetching the video. Try again later.");
+        } catch (err) {
+            console.error(err);
+            m.reply(`❌ *ᴅᴏᴡɴʟᴏᴀᴅ ꜰᴀɪʟᴇᴅ:* ᴛɪᴍᴇᴏᴜᴛ ᴏʀ ᴀᴘɪ ʟɪᴍɪᴛ.`);
         }
     }
 };
