@@ -3,13 +3,13 @@ const axios = require('axios');
 module.exports = {
     cmd: "facebook",
     alias: ["fb", "fbdl"],
-    desc: "Download Facebook videos with Newsletter branding",
+    desc: "Download Facebook videos with Pro Branding",
     category: "DOWNLOAD",
     async execute(conn, m, { text }) {
         const url = text;
 
         if (!url) {
-            return m.reply("📘 *ᴘᴏᴘᴋɪᴅ-ᴍᴅ ꜰʙ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\n*Usage:* .fb <link>");
+            return m.reply("📘 *ᴘᴏᴘᴋɪᴅ-ᴍᴅ ꜰʙ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\n*Usage:* .fb <facebook link>");
         }
 
         try {
@@ -17,6 +17,7 @@ module.exports = {
 
             const apiUrl = `https://gtech-api-xtp1.onrender.com/api/video/fb?apikey=APIKEY&url=${encodeURIComponent(url)}`;
             const res = await axios.get(apiUrl, { timeout: 60000 });
+
             const media = res?.data?.result?.media;
 
             if (!res.data.status || !media) {
@@ -26,7 +27,9 @@ module.exports = {
             const videoUrl = media.video_url_hd || media.video_url_sd;
             const title = media.title || "Facebook Video";
 
-            const caption = `📘 *ꜰᴀᴄᴇʙᴏᴏᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\n` +
+            if (!videoUrl) throw new Error("Could not extract video URL.");
+
+            const caption = `📘 *𝐅𝐀𝐂𝐄𝐁𝐎𝐎𝐊 𝐃𝐎𝐖𝐍𝐋𝐎𝐀𝐃𝐄𝐑*\n\n` +
                             `🎬 *Title:* ${title}\n` +
                             `🎞 *Quality:* ${media.video_url_hd ? 'HD High' : 'SD Standard'}\n\n` +
                             `> 𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀ɪɴ𝖾 𝟤𝟢𝟤𝟨 🇰🇪`;
@@ -34,11 +37,11 @@ module.exports = {
             await m.react("✅");
 
             // --- THE FIX ---
-            // Instead of conn.sendMessage, we use m.reply with the video option.
-            // This triggers the custom logic in your lib/serialize.js
-            return await m.reply(caption, { 
+            // Using m.reply with a media object triggers your Newsletter logic in serialize.js
+            return await m.reply({ 
                 video: { url: videoUrl }, 
-                mimetype: 'video/mp4' 
+                mimetype: 'video/mp4', 
+                caption: caption 
             });
 
         } catch (err) {
