@@ -1,64 +1,76 @@
 /**
- * POPKID-MD POWER-ADMIN SYSTEM (STALE-CACHE FIX)
- * This version forces a metadata refresh to ensure the Admin Badge is recognized.
+ * POPKID-MD — ROLE MANAGEMENT SYSTEM
+ * Adapted from Vanguard MD Logic
  */
 
 module.exports = {
     cmd: "promote",
-    alias: ["demote", "kick"],
-    desc: "Fixed Group Administration",
+    alias: ["demote"],
+    desc: "Promote or Demote a member",
     category: "admin",
     isGroup: true,
-    async execute(conn, m, { command }) {
+    async execute(conn, m, { command, isOwner }) {
+        const from = m.from;
+        const sender = m.sender;
+
+        // 1. FRESH ADMIN CHECKS (Vanguard Logic)
+        const groupMetadata = await conn.groupMetadata(from);
+        const participants = groupMetadata.participants;
+
+        const botId = conn.user.id.split(':')[0] + '@s.whatsapp.net';
+        const botInList = participants.find(p => p.id === botId);
+        const senderInList = participants.find(p => p.id === sender);
+
+        // Check if Bot is Admin
+        if (!botInList || !botInList.admin) {
+            return m.reply("❌ I need to be an admin to " + command + " members!");
+        }
+
+        // Admins + Owner can use
+        const senderIsAdmin = senderInList?.admin;
+        if (!isOwner && !senderIsAdmin) {
+            return m.reply("❌ Only admins can use this command!");
+        }
+
+        // 2. IDENTIFY TARGET (Vanguard Logic)
+        let target = m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || null;
+        if (!target && m.message?.extendedTextMessage?.contextInfo?.participant) {
+            target = m.message.extendedTextMessage.contextInfo.participant;
+        }
+
+        if (!target) return m.reply(`❌ Mention or reply to someone to ${command}!\n_Example: .${command} @user_`);
+        if (target === sender) return m.reply(`❌ You cannot ${command} yourself!`);
+
+        // 3. CHECK CURRENT STATUS
+        const targetInList = participants.find(p => p.id === target);
+        const targetIsAdmin = targetInList?.admin;
+
+        if (command === "promote" && targetIsAdmin) {
+            return m.reply({
+                text: '😌 _@' + target.split('@')[0] + ' is already an Admin 😎_',
+                mentions: [target]
+            });
+        }
+        
+        if (command === "demote" && !targetIsAdmin) {
+            return m.reply({
+                text: '❗ _@' + target.split('@')[0] + ' is already not an Admin._',
+                mentions: [target]
+            });
+        }
+
+        // 4. EXECUTION
         try {
-            const from = m.from;
-            
-            // 1. Get Bot's clean number (The 'me' ID)
-            const botNumber = conn.user.id.split(':')[0];
-            const senderNumber = m.sender.split(':')[0];
-
-            // 2. FORCE REFRESH: Fetch metadata directly from WhatsApp servers
-            // This is the "secret sauce" to stop the stale cache error
-            const groupMetadata = await conn.groupMetadata(from).catch(() => null);
-            if (!groupMetadata) return m.reply("❌ Failed to fetch group data.");
-            
-            const participants = groupMetadata.participants;
-
-            // 3. ROBUST SEARCH: Find Bot and Sender by matching number strings
-            const botInList = participants.find(p => p.id.startsWith(botNumber));
-            const senderInList = participants.find(p => p.id.startsWith(senderNumber));
-
-            // --- THE REAL ADMIN CHECK ---
-            if (!botInList || !botInList.admin) {
-                // If it fails here, the bot definitely doesn't have the badge in WA's eyes
-                return m.reply("❌ *POPKID-MD Error:* I've checked the server, and I still don't have the **Admin Badge**. Please remove me and add me back as Admin.");
-            }
-
-            // Super-user bypass for you
-            const isOwner = senderNumber.includes("254732297194") || m.fromMe;
-            if (!senderInList?.admin && !isOwner) {
-                return m.reply("❌ *Restricted:* You need to be an **Admin** to use this.");
-            }
-
-            // 4. TARGET SELECTION
-            const target = m.message?.extendedTextMessage?.contextInfo?.participant || 
-                           m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0];
-
-            if (!target) return m.reply(`📝 Please reply to a message or tag someone to ${command}.`);
-
-            // 5. EXECUTION
-            const action = command === "promote" ? "promote" : command === "demote" ? "demote" : "remove";
-            
+            const action = command === "promote" ? "promote" : "demote";
             await conn.groupParticipantsUpdate(from, [target], action);
             
             await m.react("✅");
-            if (command !== "kick") {
-                m.reply(`✅ *POPKID-MD:* ${command} successful for @${target.split('@')[0]}`, { mentions: [target] });
-            }
-
-        } catch (e) {
-            console.error(e);
-            m.reply("⚠️ *Engine Error:* Action failed. Try restarting the bot if I was just promoted.");
+            await m.reply({
+                text: '✅ _Mission Completed Successfully_',
+                mentions: [target]
+            });
+        } catch (err) {
+            await m.reply('❌ Failed to ' + command + ': ' + err.message);
         }
     }
 };
