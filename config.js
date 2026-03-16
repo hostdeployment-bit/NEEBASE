@@ -7,6 +7,7 @@ module.exports = {
     AUTO_REACT_STATUS: process.env.AUTO_REACT_STATUS || "true",
     ANTICALL: process.env.ANTICALL || "true",
     AUTO_BIO: process.env.AUTO_BIO || "true",
+    BOT_OFF: process.env.BOT_OFF || "false",
     NON_PREFIX: process.env.NON_PREFIX || "true",
     MODE: process.env.MODE || "public",
     ALWAYS_ONLINE: process.env.ALWAYS_ONLINE || "true",
