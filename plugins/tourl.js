@@ -10,36 +10,47 @@ module.exports = {
     category: "TOOLS",
     async execute(conn, m) {
         try {
-            // 1. Identify source (Direct or Quoted) - Using deep-scan logic
+            // 1. UNIVERSAL MEDIA DETECTOR
+            // This checks both direct messages and quoted messages for any media key
             let q = m.quoted ? m.quoted : m;
-            let mime = (q.msg || q).mimetype || '';
+            let msg = q.msg || q;
             
-            if (!mime) {
-                return m.reply("❌ Please reply to an image, video, audio, or document!");
+            // Look for the actual media object inside the message
+            let mediaObj = q.message?.imageMessage || q.imageMessage || 
+                           q.message?.videoMessage || q.videoMessage || 
+                           q.message?.audioMessage || q.audioMessage || 
+                           q.message?.stickerMessage || q.stickerMessage ||
+                           q.message?.documentMessage || q.documentMessage ||
+                           (q.msg && q.msg.mimetype ? q.msg : null);
+
+            if (!mediaObj || !mediaObj.mimetype) {
+                return m.reply("❌ Error: I can't see the media. Please reply directly to the image/video!");
             }
 
             await m.react("⏳");
 
-            // 2. DOWNLOAD LOGIC (Copied from your working sticker.js)
+            // 2. EXTRACTION LOGIC
+            const mime = mediaObj.mimetype;
             const messageType = mime.split('/')[0].replace('application', 'document');
-            const stream = await downloadContentFromMessage(q.msg || q, messageType);
+            
+            // 3. MANUAL DOWNLOAD STREAM
+            const stream = await downloadContentFromMessage(mediaObj, messageType);
             let buffer = Buffer.from([]);
             for await (const chunk of stream) {
                 buffer = Buffer.concat([buffer, chunk]);
             }
 
-            if (!buffer || buffer.length === 0) throw new Error("Buffer is empty.");
+            if (!buffer || buffer.length === 0) throw new Error("File download failed.");
 
-            // 3. Size check (10MB)
+            // 4. Size check (10MB)
             if (buffer.length > 10 * 1024 * 1024) {
                 return m.reply("✴️ *ꜰɪʟᴇ ᴛᴏᴏ ʟᴀʀɢᴇ.* ᴍᴀx ʟɪᴍɪᴛ ɪꜱ 10ᴍʙ.");
             }
 
-            // 4. Detect file type
+            // 5. Detect extension and Upload
             const type = await fileTypeFromBuffer(buffer);
             const extension = type ? type.ext : "bin";
 
-            // 5. Upload to Catbox
             const form = new FormData();
             form.append('reqtype', 'fileupload');
             form.append('fileToUpload', buffer, `popkid.${extension}`);
