@@ -6,15 +6,13 @@ module.exports = {
     desc: "Download Facebook videos with Pro Branding",
     category: "DOWNLOAD",
     async execute(conn, m, { text }) {
-        // Fix: Ensure text is a string to prevent .match errors
-        let url = (typeof text === 'string') ? text : (m.body ? m.body.split(' ')[1] : '');
+        // --- SAFETY FIX FOR THE .MATCH ERROR ---
+        // This ensures 'url' is always a string before we test it with Regex
+        let url = (text && typeof text === 'string') ? text.trim() : "";
 
-        if (!url || url.trim() === "") {
+        if (!url) {
             return m.reply("📘 *ᴘᴏᴘᴋɪᴅ-ᴍᴅ ꜰʙ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\n*Usage:* .fb <facebook link>");
         }
-
-        // Clean the URL in case of extra spaces
-        url = url.trim();
 
         if (!/facebook\.com|fb\.watch/i.test(url)) {
             return m.reply("❌ *ɪɴᴠᴀʟɪᴅ ʟɪɴᴋ.* ᴘʟᴇᴀꜱᴇ ꜱᴇɴᴅ ᴀ ᴠᴀʟɪᴅ ꜰᴀᴄᴇʙᴏᴏᴋ ᴠɪᴅᴇᴏ ᴜʀʟ.");
@@ -44,7 +42,7 @@ module.exports = {
 
             await m.react("✅");
 
-            // Using the smart m.reply we added to serialize.js
+            // Using the smart m.reply from your serialize.js for branding
             return await m.reply({ 
                 video: { url: videoUrl }, 
                 mimetype: 'video/mp4', 
@@ -54,6 +52,7 @@ module.exports = {
         } catch (err) {
             console.error('FB DL Error:', err);
             await m.react("❌");
+            // If the error persists, it might be the API endpoint itself failing
             return m.reply(`❌ *ᴅᴏᴡɴʟᴏᴀᴅ ꜰᴀɪʟᴇᴅ:*\n${err.message}`);
         }
     }
