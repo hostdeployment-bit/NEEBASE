@@ -28,6 +28,7 @@ const { GroupEvents } = require("./lib/groupEvents"); // Added Group Events Libr
 const { AntilinkHandler } = require("./lib/antilinkHandler"); // Added Antilink Handler Library
 const { AntideleteHandler } = require("./lib/antidelete"); // Added Antidelete Library
 const { handleTagDetection } = require("./lib/tagDetector"); // Added Antitag Detector Library
+const { handleIncomingCall } = require("./lib/callHandler"); // Added Anticall Library
 const config = require("./config");
 
 const app = express();
@@ -105,6 +106,9 @@ async function startPopkid() {
     });
 
     conn.ev.on("creds.update", saveCreds);
+
+    // ============ [ CALL EVENT ] ============
+    conn.ev.on('call', async (call) => await handleIncomingCall(conn, call));
 
     // ============ [ GROUP PARTICIPANTS UPDATE HANDLER ] ============
     conn.ev.on('group-participants.update', async (anu) => {
