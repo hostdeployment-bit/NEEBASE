@@ -10,44 +10,40 @@ module.exports = {
     category: "TOOLS",
     async execute(conn, m) {
         try {
-            // 1. UNIVERSAL MEDIA DETECTOR
-            // This checks both direct messages and quoted messages for any media key
+            // 1. PRO MEDIA HUNTER
+            // We dig into the quoted message or the current message to find the media content
             let q = m.quoted ? m.quoted : m;
-            let msg = q.msg || q;
             
-            // Look for the actual media object inside the message
-            let mediaObj = q.message?.imageMessage || q.imageMessage || 
-                           q.message?.videoMessage || q.videoMessage || 
-                           q.message?.audioMessage || q.audioMessage || 
-                           q.message?.stickerMessage || q.stickerMessage ||
-                           q.message?.documentMessage || q.documentMessage ||
-                           (q.msg && q.msg.mimetype ? q.msg : null);
+            // This looks for the content inside imageMessage, videoMessage, etc.
+            let mime = (q.msg || q).mimetype || '';
+            let mediaData = q.msg || (q.message ? q.message[Object.keys(q.message)[0]] : q);
 
-            if (!mediaObj || !mediaObj.mimetype) {
-                return m.reply("❌ Error: I can't see the media. Please reply directly to the image/video!");
+            // Validation: Ensure we actually have a mimetype to work with
+            if (!mime && !mediaData.mimetype) {
+                return m.reply("❌ Error: Media not detected. Please reply directly to the image or video!");
             }
 
+            const finalMime = mime || mediaData.mimetype;
             await m.react("⏳");
 
-            // 2. EXTRACTION LOGIC
-            const mime = mediaObj.mimetype;
-            const messageType = mime.split('/')[0].replace('application', 'document');
+            // 2. STICKER-STYLE DOWNLOAD LOGIC
+            // This is the manual stream method that you confirmed works for stickers
+            const messageType = finalMime.split('/')[0].replace('application', 'document');
+            const stream = await downloadContentFromMessage(mediaData, messageType);
             
-            // 3. MANUAL DOWNLOAD STREAM
-            const stream = await downloadContentFromMessage(mediaObj, messageType);
             let buffer = Buffer.from([]);
             for await (const chunk of stream) {
                 buffer = Buffer.concat([buffer, chunk]);
             }
 
-            if (!buffer || buffer.length === 0) throw new Error("File download failed.");
+            if (!buffer || buffer.length === 0) throw new Error("File buffer is empty.");
 
-            // 4. Size check (10MB)
+            // 3. Size Check (10MB)
             if (buffer.length > 10 * 1024 * 1024) {
                 return m.reply("✴️ *ꜰɪʟᴇ ᴛᴏᴏ ʟᴀʀɢᴇ.* ᴍᴀx ʟɪᴍɪᴛ ɪꜱ 10ᴍʙ.");
             }
 
-            // 5. Detect extension and Upload
+            // 4. Detect Extension & Upload to Catbox
             const type = await fileTypeFromBuffer(buffer);
             const extension = type ? type.ext : "bin";
 
@@ -62,10 +58,10 @@ module.exports = {
             const url = res.data;
 
             if (!url || typeof url !== 'string' || !url.startsWith('https')) {
-                throw new Error("Invalid response from Catbox.");
+                throw new Error("Invalid API response from Catbox.");
             }
 
-            // 6. Success Output
+            // 5. Success Output
             const sizeMB = (buffer.length / (1024 * 1024)).toFixed(2);
             await m.react("🔗");
 
@@ -77,7 +73,7 @@ module.exports = {
             );
 
         } catch (e) {
-            console.error("Catbox Upload Error:", e);
+            console.error("Final URL Error:", e);
             await m.react("❌");
             return m.reply(`❌ *ᴜᴘʟᴏᴀᴅ ꜰᴀɪʟᴇᴅ:* ${e.message}`);
         }
