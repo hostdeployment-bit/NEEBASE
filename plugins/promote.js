@@ -1,50 +1,57 @@
-const { isBotAdmin, isSenderAdmin, jidToNum } = require('../lib/utils');
+/**
+ * POPKID-MD — ROLE MANAGEMENT SYSTEM
+ * Logic: Vanguard MD (High Stability)
+ * Base: Popkid Master Engine
+ */
+
+const { isBotAdmin, isSenderAdmin, jidToNum } = require('../lib/utils')
 
 module.exports = {
     cmd: "promote",
     alias: ["demote"],
-    desc: "Change member roles in the group",
+    desc: "Promote or Demote group members",
     category: "admin",
     isGroup: true,
     async execute(conn, m, { command, isOwner }) {
+        const jid = m.from
+        const sender = m.sender
+
+        // ── 1. Admin + Sudo Checks (Vanguard Logic) ──
+        const senderIsAdmin = await isSenderAdmin(conn, jid, sender)
+        if (!isOwner && !senderIsAdmin) return m.reply('❌ Only admins can use this command!')
+
+        const botAdmin = await isBotAdmin(conn, jid)
+        if (!botAdmin) return m.reply('❌ I need to be an admin to ' + command + ' members!')
+
+        // ── 2. Target Identification ──
+        let target = m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || null
+        if (!target && m.message?.extendedTextMessage?.contextInfo?.participant) {
+            target = m.message.extendedTextMessage.contextInfo.participant
+        }
+
+        if (!target) return m.reply(`❌ Mention or reply to someone to ${command}!\n_Example: .${command} @user_`)
+
+        // ── 3. Normalization Fix (From Vanguard Demote) ──
+        // This ensures LID and JID formats match perfectly during the update
+        const normalize = (j) => (j || '').replace(/:[0-9]+@/, '@')
+        const botJid = normalize(conn.user?.id)
+        const targetClean = normalize(target)
+        
+        // Use the raw ID if it's the bot, otherwise use the target
+        const targetJid = targetClean === botJid ? conn.user?.id : target
+
+        // ── 4. Execution ──
         try {
-            const jid = m.from;
-
-            // 1. Check if Bot is Admin (Using our new Utils)
-            const botAdmin = await isBotAdmin(conn, jid);
-            if (!botAdmin) {
-                return m.reply("❌ *POPKID-MD Error:* I need the **Admin Badge** to change roles!");
-            }
-
-            // 2. Check if Sender (You) is Admin or Owner
-            const senderAdmin = await isSenderAdmin(conn, jid, m.sender);
-            if (!isOwner && !senderAdmin) {
-                return m.reply("❌ *Restricted:* This command is for **Group Admins** only.");
-            }
-
-            // 3. Identify Target (Reply or Mention)
-            let target = m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || 
-                         m.message?.extendedTextMessage?.contextInfo?.participant;
-
-            if (!target) return m.reply(`📝 Please reply to a message or tag someone to ${command}.`);
-
-            // 4. Execution
-            const action = command === "promote" ? "promote" : "demote";
-            await conn.groupParticipantsUpdate(jid, [target], action);
+            const action = command === "promote" ? "promote" : "demote"
+            await conn.groupParticipantsUpdate(jid, [targetJid], action)
             
-            // 5. Stylish Success Feedback
-            await m.react("✅");
-            const targetNum = jidToNum(target);
-            const statusText = action === "promote" ? "is now an Admin! ⬆️" : "is no longer an Admin. ⬇️";
-
-            await conn.sendMessage(jid, {
-                text: `✨ *@${targetNum}* ${statusText}\n\n> *𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀𝗂𝗇𝖾* 🇰🇪`,
-                mentions: [target]
-            }, { quoted: m });
-
-        } catch (e) {
-            console.error(e);
-            m.reply("⚠️ *Engine Error:* Action failed. The user might have left or is already an admin.");
+            await m.react("✅")
+            await m.reply({
+                text: '✅ _Mission Completed Successfully_',
+                mentions: [targetJid],
+            })
+        } catch (err) {
+            await m.reply('❌ Failed to ' + command + ': Ensure I am admin and not targeting the Creator.')
         }
     }
-};
+}
