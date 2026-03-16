@@ -1,69 +1,47 @@
 const config = require("../config");
 
-// --- HELPER FUNCTION FOR CLEAN UI ---
-const toggle = async (conn, m, key, name, text) => {
-    const input = text?.toLowerCase();
-    if (input !== 'on' && input !== 'off') {
-        const current = config[key] === "true" ? "🟢 ᴏɴ" : "🔴 ᴏꜰꜰ";
-        return m.reply(`✨ *${name}* ✨\n\n◦ *ᴄᴜʀʀᴇɴᴛ:* ${current}\n◦ *ᴜꜱᴀɢᴇ:* .${name.toLowerCase().replace(/ /g, '')} on/off`);
-    }
-    
-    config[key] = input === 'on' ? "true" : "false";
-    await m.react(config[key] === "true" ? "✅" : "❌");
-    
-    const status = config[key] === "true" ? "🟢 ᴇɴᴀʙʟᴇᴅ" : "🔴 ᴅɪꜱᴀʙʟᴇᴅ";
-    return m.reply(`✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐔𝐏𝐃𝐀𝐓𝐄* ✨\n══════════════════\n✅ *${name}*\nꜱᴛᴀᴛᴜꜱ: ${status}\n══════════════════`);
-};
+module.exports = {
+    cmd: "autobio",
+    alias: ["autotyping", "autorecording", "nonprefix", "autostatusview", "autoreact", "alwaysonline"],
+    desc: "Toggle engine features",
+    category: "OWNER",
+    isOwner: true,
+    async execute(conn, m, { text, command }) {
+        // 1. Identify which config key to update based on the command used
+        let key;
+        let name;
 
-// --- EXPORTING INDIVIDUAL COMMANDS ---
-module.exports = [
-    {
-        cmd: "autobio",
-        desc: "Toggle Auto Bio",
-        category: "OWNER",
-        isOwner: true,
-        async execute(conn, m, { text }) { await toggle(conn, m, "AUTO_BIO", "ᴀᴜᴛᴏ ʙɪᴏ", text); }
-    },
-    {
-        cmd: "autotyping",
-        desc: "Toggle Auto Typing",
-        category: "OWNER",
-        isOwner: true,
-        async execute(conn, m, { text }) { await toggle(conn, m, "AUTO_TYPING", "ᴀᴜᴛᴏ ᴛʏᴘɪɴɢ", text); }
-    },
-    {
-        cmd: "autorecording",
-        desc: "Toggle Auto Recording",
-        category: "OWNER",
-        isOwner: true,
-        async execute(conn, m, { text }) { await toggle(conn, m, "AUTO_RECORDING", "ᴀᴜᴛᴏ ʀᴇᴄᴏʀᴅɪɴɢ", text); }
-    },
-    {
-        cmd: "autostatusview",
-        desc: "Toggle Auto Read Status",
-        category: "OWNER",
-        isOwner: true,
-        async execute(conn, m, { text }) { await toggle(conn, m, "AUTO_READ_STATUS", "ᴀᴜᴛᴏ ʀᴇᴀᴅ", text); }
-    },
-    {
-        cmd: "autoreact",
-        desc: "Toggle Auto React Status",
-        category: "OWNER",
-        isOwner: true,
-        async execute(conn, m, { text }) { await toggle(conn, m, "AUTO_REACT_STATUS", "ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ", text); }
-    },
-    {
-        cmd: "nonprefix",
-        desc: "Toggle Non-Prefix Mode",
-        category: "OWNER",
-        isOwner: true,
-        async execute(conn, m, { text }) { await toggle(conn, m, "NON_PREFIX", "ɴᴏɴ-ᴘʀᴇꜰɪx", text); }
-    },
-    {
-        cmd: "alwaysonline",
-        desc: "Toggle Always Online",
-        category: "OWNER",
-        isOwner: true,
-        async execute(conn, m, { text }) { await toggle(conn, m, "ALWAYS_ONLINE", "ᴀʟᴡᴀʏꜱ ᴏɴʟɪɴᴇ", text); }
+        if (command === "autobio") { key = "AUTO_BIO"; name = "ᴀᴜᴛᴏ ʙɪᴏ"; }
+        else if (command === "autotyping") { key = "AUTO_TYPING"; name = "ᴀᴜᴛᴏ ᴛʏᴘɪɴɢ"; }
+        else if (command === "autorecording") { key = "AUTO_RECORDING"; name = "ᴀᴜᴛᴏ ʀᴇᴄᴏʀᴅɪɴɢ"; }
+        else if (command === "nonprefix") { key = "NON_PREFIX"; name = "ɴᴏɴ-ᴘʀᴇꜰɪx"; }
+        else if (command === "autostatusview") { key = "AUTO_READ_STATUS"; name = "ᴀᴜᴛᴏ ʀᴇᴀᴅ"; }
+        else if (command === "autoreact") { key = "AUTO_REACT"; name = "ᴀᴜᴛᴏ ʀᴇᴀᴄᴛ"; }
+        else if (command === "alwaysonline") { key = "ALWAYS_ONLINE"; name = "ᴀʟᴡᴀʏꜱ ᴏɴʟɪɴᴇ"; }
+
+        const input = text?.toLowerCase();
+
+        // 2. If no "on" or "off", show current status
+        if (input !== 'on' && input !== 'off') {
+            const current = config[key] === "true" ? "🟢 ᴏɴ" : "🔴 ᴏꜰꜰ";
+            return m.reply(`✨ *${name}* ✨\n\n◦ *ꜱᴛᴀᴛᴜꜱ:* ${current}\n◦ *ᴜꜱᴀɢᴇ:* .${command} on/off`);
+        }
+
+        // 3. Update the config
+        config[key] = input === 'on' ? "true" : "false";
+        
+        // 4. Send the reaction and pretty confirmation
+        await m.react(config[key] === "true" ? "✅" : "❌");
+
+        const statusLabel = config[key] === "true" ? "🟢 ᴇɴᴀʙʟᴇᴅ" : "🔴 ᴅɪꜱᴀʙʟᴇᴅ";
+        
+        let feedback = `✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐔𝐏𝐃𝐀𝐓𝐄* ✨\n` +
+                       `══════════════════\n` +
+                       `✅ *${name}*\n` +
+                       `ꜱᴛᴀᴛᴜꜱ: ${statusLabel}\n` +
+                       `══════════════════\n` +
+                       `> ꜱᴇᴛᴛɪɴɢꜱ ꜱᴀᴠᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ 🚀`;
+
+        return m.reply(feedback);
     }
-];
+};
