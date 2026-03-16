@@ -2,8 +2,8 @@ const axios = require('axios');
 const yts = require('yt-search');
 
 module.exports = {
-    cmd: "play2",
-    alias: ["player", "song2"],
+    cmd: "play",
+    alias: ["audio", "song"],
     desc: "Download and play songs from YouTube",
     category: "download",
     async execute(conn, m, { text, args }) {
