@@ -1,7 +1,6 @@
 const { downloadContentFromMessage, getContentType } = require("@whiskeysockets/baileys");
 const axios = require('axios');
 const FormData = require('form-data');
-const { fileTypeFromBuffer } = require('file-type');
 
 module.exports = {
     cmd: "tourl",
@@ -14,7 +13,6 @@ module.exports = {
             const messageContent = m.message?.extendedTextMessage?.contextInfo?.quotedMessage || m.message;
             const type = getContentType(messageContent);
             
-            // This targets the specific media object (image, video, or document)
             const mediaMsg = messageContent?.imageMessage || 
                              messageContent?.videoMessage || 
                              messageContent?.audioMessage || 
@@ -42,10 +40,18 @@ module.exports = {
                 return m.reply("✴️ *ꜰɪʟᴇ ᴛᴏᴏ ʟᴀʀɢᴇ.* ᴍᴀx ʟɪᴍɪᴛ ɪꜱ 10ᴍʙ.");
             }
 
-            // 4. DETECT TYPE & UPLOAD
-            const fileType = await fileTypeFromBuffer(buffer);
-            const extension = fileType ? fileType.ext : "bin";
+            // 4. DETECT EXTENSION (Fixed version-safe way)
+            let extension = 'bin';
+            try {
+                const { fileTypeFromBuffer } = await import('file-type');
+                const ft = await fileTypeFromBuffer(buffer);
+                if (ft) extension = ft.ext;
+            } catch (e) {
+                // Fallback: Get extension from mimetype if file-type fails
+                extension = mediaMsg.mimetype.split('/')[1].split(';')[0] || 'bin';
+            }
 
+            // 5. UPLOAD TO CATBOX
             const form = new FormData();
             form.append('reqtype', 'fileupload');
             form.append('fileToUpload', buffer, `popkid.${extension}`);
@@ -60,7 +66,7 @@ module.exports = {
                 throw new Error("Invalid response from Catbox.");
             }
 
-            // 5. SUCCESS OUTPUT
+            // 6. SUCCESS OUTPUT
             const sizeMB = (buffer.length / (1024 * 1024)).toFixed(2);
             await m.react("🔗");
 
