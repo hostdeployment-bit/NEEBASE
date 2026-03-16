@@ -1,33 +1,47 @@
-const fs = require('fs');
-const path = require('path');
-const settingsFile = path.join(__dirname, '../database/group_settings.json');
+const config = require("../config");
 
 module.exports = {
     cmd: "antidelete",
-    alias: ["ad", "nodelete"],
-    desc: "Toggle Anti-delete for this specific chat",
-    category: "general",
+    alias: ["ad", "antidel"],
+    desc: "Configure Anti-Delete protection",
+    category: "OWNER",
+    isOwner: true,
     async execute(conn, m, { text }) {
-        const dbDir = path.join(__dirname, '../database');
-        if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir);
-        
-        let settings = fs.existsSync(settingsFile) ? JSON.parse(fs.readFileSync(settingsFile)) : {};
+        const input = text?.toLowerCase();
 
-        const mode = text.toLowerCase().trim();
-
-        if (mode === "on") {
-            settings[m.from] = { ...settings[m.from], antidelete: true };
-            fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2));
-            return m.reply("🛡️ *POPKID-MD:* Anti-delete is now **ENABLED** for this chat.");
-        } 
-        
-        if (mode === "off") {
-            settings[m.from] = { ...settings[m.from], antidelete: false };
-            fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2));
-            return m.reply("🔓 *POPKID-MD:* Anti-delete is now **DISABLED**.");
+        // 1. DASHBOARD VIEW (If no valid input)
+        if (!['inchat', 'indm', 'false'].includes(input)) {
+            const current = config.ANTIDELETE === "false" ? "🔴 ᴅɪꜱᴀʙʟᴇᴅ" : `🟢 ᴀᴄᴛɪᴠᴇ (${config.ANTIDELETE})`;
+            return m.reply(
+                `✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐀𝐍𝐓𝐈-𝐃𝐄𝐋𝐄𝐓𝐄* ✨\n` +
+                `══════════════════════⊷\n` +
+                `📊 *ᴄᴜʀʀᴇɴᴛ:* ${current}\n\n` +
+                `📝 *ᴀᴠᴀɪʟᴀʙʟᴇ ꜱᴇᴛᴛɪɴɢꜱ:* \n` +
+                `◦ .antidelete inchat (Sends to the group)\n` +
+                `◦ .antidelete indm (Sends to your DM)\n` +
+                `◦ .antidelete false (Turn off)\n` +
+                `══════════════════════⊷\n` +
+                `> 𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀ɪɴ𝖾 🇰🇪`
+            );
         }
 
-        const status = settings[m.from]?.antidelete ? "ACTIVE ✅" : "INACTIVE ❌";
-        m.reply(`🛡️ *ANTI-DELETE ENGINE*\n\nStatus: ${status}\n\n*Usage:* .antidelete on/off`);
+        // 2. PROCESS TOGGLE
+        config.ANTIDELETE = input;
+        process.env.ANTIDELETE = input; // Real-time update
+
+        await m.react(input === 'false' ? "❌" : "🛡️");
+
+        // 3. DESIGNER SUCCESS CARD
+        const statusIcon = input === 'false' ? "🔴 ᴅɪꜱᴀʙʟᴇᴅ" : `🟢 ᴇɴᴀʙʟᴇᴅ (${input})`;
+        
+        let feedback = `✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐔𝐏𝐃𝐀𝐓𝐄* ✨\n` +
+                       `══════════════════\n` +
+                       `✅ *ᴀɴᴛɪ-ᴅᴇʟᴇᴛᴇ ꜱᴇᴛ*\n` +
+                       `📊 *ꜱᴛᴀᴛᴜꜱ:* ${statusIcon}\n` +
+                       `🛡️ *ᴇɴɢɪɴᴇ:* ᴏᴘᴇʀᴀᴛɪᴏɴᴀʟ\n` +
+                       `══════════════════\n` +
+                       `> ꜱᴇᴛᴛɪɴɢꜱ ᴀᴘᴘʟɪᴇᴅ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ 🚀`;
+
+        return m.reply(feedback);
     }
 };
