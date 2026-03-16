@@ -1,4 +1,4 @@
-const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
+const { downloadContentFromMessage, getContentType } = require("@whiskeysockets/baileys");
 const axios = require('axios');
 const FormData = require('form-data');
 const { fileTypeFromBuffer } = require('file-type');
@@ -10,42 +10,41 @@ module.exports = {
     category: "TOOLS",
     async execute(conn, m) {
         try {
-            // 1. PRO MEDIA HUNTER
-            // We dig into the quoted message or the current message to find the media content
-            let q = m.quoted ? m.quoted : m;
+            // 1. EXACT STICKER LOGIC TO FIND MEDIA
+            const messageContent = m.message?.extendedTextMessage?.contextInfo?.quotedMessage || m.message;
+            const type = getContentType(messageContent);
             
-            // This looks for the content inside imageMessage, videoMessage, etc.
-            let mime = (q.msg || q).mimetype || '';
-            let mediaData = q.msg || (q.message ? q.message[Object.keys(q.message)[0]] : q);
+            // This targets the specific media object (image, video, or document)
+            const mediaMsg = messageContent?.imageMessage || 
+                             messageContent?.videoMessage || 
+                             messageContent?.audioMessage || 
+                             messageContent?.documentMessage;
 
-            // Validation: Ensure we actually have a mimetype to work with
-            if (!mime && !mediaData.mimetype) {
-                return m.reply("❌ Error: Media not detected. Please reply directly to the image or video!");
+            if (!mediaMsg || !mediaMsg.mimetype) {
+                return m.reply("❌ Please reply to an image, video, or document!");
             }
 
-            const finalMime = mime || mediaData.mimetype;
             await m.react("⏳");
 
-            // 2. STICKER-STYLE DOWNLOAD LOGIC
-            // This is the manual stream method that you confirmed works for stickers
-            const messageType = finalMime.split('/')[0].replace('application', 'document');
-            const stream = await downloadContentFromMessage(mediaData, messageType);
+            // 2. DOWNLOAD MEDIA (Using your working stream logic)
+            const streamType = mediaMsg.mimetype.split('/')[0].replace('application', 'document');
+            const stream = await downloadContentFromMessage(mediaMsg, streamType);
             
             let buffer = Buffer.from([]);
             for await (const chunk of stream) {
                 buffer = Buffer.concat([buffer, chunk]);
             }
 
-            if (!buffer || buffer.length === 0) throw new Error("File buffer is empty.");
+            if (!buffer || buffer.length === 0) throw new Error("File download failed.");
 
-            // 3. Size Check (10MB)
+            // 3. SIZE CHECK (10MB)
             if (buffer.length > 10 * 1024 * 1024) {
                 return m.reply("✴️ *ꜰɪʟᴇ ᴛᴏᴏ ʟᴀʀɢᴇ.* ᴍᴀx ʟɪᴍɪᴛ ɪꜱ 10ᴍʙ.");
             }
 
-            // 4. Detect Extension & Upload to Catbox
-            const type = await fileTypeFromBuffer(buffer);
-            const extension = type ? type.ext : "bin";
+            // 4. DETECT TYPE & UPLOAD
+            const fileType = await fileTypeFromBuffer(buffer);
+            const extension = fileType ? fileType.ext : "bin";
 
             const form = new FormData();
             form.append('reqtype', 'fileupload');
@@ -58,10 +57,10 @@ module.exports = {
             const url = res.data;
 
             if (!url || typeof url !== 'string' || !url.startsWith('https')) {
-                throw new Error("Invalid API response from Catbox.");
+                throw new Error("Invalid response from Catbox.");
             }
 
-            // 5. Success Output
+            // 5. SUCCESS OUTPUT
             const sizeMB = (buffer.length / (1024 * 1024)).toFixed(2);
             await m.react("🔗");
 
@@ -73,7 +72,7 @@ module.exports = {
             );
 
         } catch (e) {
-            console.error("Final URL Error:", e);
+            console.error("URL Command Error:", e);
             await m.react("❌");
             return m.reply(`❌ *ᴜᴘʟᴏᴀᴅ ꜰᴀɪʟᴇᴅ:* ${e.message}`);
         }
