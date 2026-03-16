@@ -6,10 +6,18 @@ module.exports = {
     desc: "Download Facebook videos with Pro Branding",
     category: "DOWNLOAD",
     async execute(conn, m, { text }) {
-        const url = text;
+        // Fix: Ensure text is a string to prevent .match errors
+        let url = (typeof text === 'string') ? text : (m.body ? m.body.split(' ')[1] : '');
 
-        if (!url) {
+        if (!url || url.trim() === "") {
             return m.reply("📘 *ᴘᴏᴘᴋɪᴅ-ᴍᴅ ꜰʙ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\n*Usage:* .fb <facebook link>");
+        }
+
+        // Clean the URL in case of extra spaces
+        url = url.trim();
+
+        if (!/facebook\.com|fb\.watch/i.test(url)) {
+            return m.reply("❌ *ɪɴᴠᴀʟɪᴅ ʟɪɴᴋ.* ᴘʟᴇᴀꜱᴇ ꜱᴇɴᴅ ᴀ ᴠᴀʟɪᴅ ꜰᴀᴄᴇʙᴏᴏᴋ ᴠɪᴅᴇᴏ ᴜʀʟ.");
         }
 
         try {
@@ -36,8 +44,7 @@ module.exports = {
 
             await m.react("✅");
 
-            // --- THE FIX ---
-            // Using m.reply with a media object triggers your Newsletter logic in serialize.js
+            // Using the smart m.reply we added to serialize.js
             return await m.reply({ 
                 video: { url: videoUrl }, 
                 mimetype: 'video/mp4', 
