@@ -2,26 +2,26 @@ const { isBotAdmin, isSenderAdmin, jidToNum } = require('../lib/utils')
 
 module.exports = {
     cmd: "demote",
-    desc: "Demote an admin to member",
+    desc: "Remove admin status",
     category: "admin",
     isGroup: true,
     async execute(conn, m, { isOwner }) {
-        const jid = m.from;
         try {
-            if (!await isBotAdmin(conn, jid)) return m.reply("❌ I need admin rights!");
-            if (!isOwner && !await isSenderAdmin(conn, jid, m.sender)) return m.reply("❌ Admin only!");
+            if (!await isBotAdmin(conn, m.from)) return m.reply("❌ I need Admin rights.")
+            if (!isOwner && !await isSenderAdmin(conn, m.from, m.sender)) return m.reply("❌ Admins only.")
 
-            let target = m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || 
-                         m.message?.extendedTextMessage?.contextInfo?.participant;
+            let target = m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || m.message?.extendedTextMessage?.contextInfo?.participant
+            if (!target) return m.reply("⚠️ Tag or reply to an admin")
 
-            if (!target) return m.reply("❌ Mention or reply to someone to demote!");
+            const targetJid = target.replace(/:[0-9]+@/, '@')
 
-            const normalize = (j) => (j || '').replace(/:[0-9]+@/, '@');
-            const targetJid = normalize(target) === normalize(conn.user?.id) ? conn.user?.id : target;
+            await conn.groupParticipantsUpdate(m.from, [targetJid], 'demote')
+            await m.react("⬇️")
 
-            await conn.groupParticipantsUpdate(jid, [targetJid], 'demote');
-            await m.react("⬇️");
-            m.reply({ text: `✅ Demoted @${jidToNum(targetJid)}`, mentions: [targetJid] });
-        } catch (e) { m.reply("❌ Failed to demote."); }
+            m.reply(`✅ *@${jidToNum(targetJid)}* demoted successfully.`, { mentions: [targetJid] })
+
+        } catch (e) {
+            m.reply("❌ Action Failed")
+        }
     }
 }
