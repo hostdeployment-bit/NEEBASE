@@ -14,21 +14,19 @@ module.exports = {
             if (!target) return m.reply("⚠️ *Tag or reply to a user*")
 
             const targetJid = target.replace(/:[0-9]+@/, '@')
-            
-            // --- FETCHING THE USERNAME ---
-            const groupMetadata = await conn.groupMetadata(m.from)
-            const user = groupMetadata.participants.find(p => p.id === targetJid)
-            const username = user?.notify || user?.verifiedName || jidToNum(targetJid)
 
             await conn.groupParticipantsUpdate(m.from, [targetJid], 'promote')
             await m.react("⭐")
 
+            // --- THE FIX: Display Name via Mention ---
             const successText = `✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐔𝐏𝐃𝐀𝐓𝐄* ✨\n\n` +
                                 `🌟 *Role:* Admin Promotion\n` +
-                                `👤 *User:* ${username}\n` +
+                                `👤 *User:* @${jidToNum(targetJid)}\n` +
                                 `✅ *Status:* Successfully Promoted\n\n` +
                                 `> *Mission Completed* 🛡️`;
 
+            // By sending @number in a mention-enabled message, 
+            // WhatsApp automatically converts it to the person's name!
             m.reply(successText, { mentions: [targetJid] })
 
         } catch (e) {
