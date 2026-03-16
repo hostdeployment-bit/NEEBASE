@@ -27,6 +27,7 @@ const { sms } = require("./lib/serialize");
 const { GroupEvents } = require("./lib/groupEvents"); // Added Group Events Library
 const { AntilinkHandler } = require("./lib/antilinkHandler"); // Added Antilink Handler Library
 const { AntideleteHandler } = require("./lib/antidelete"); // Added Antidelete Library
+const { handleTagDetection } = require("./lib/tagDetector"); // Added Antitag Detector Library
 const config = require("./config");
 
 const app = express();
@@ -199,6 +200,9 @@ async function startPopkid() {
 
             // --- ANTIDELETE HANDLER ---
             await AntideleteHandler(conn, m);
+
+            // --- ANTITAG HANDLER ---
+            await handleTagDetection(conn, m);
 
             const body = m.body || '';
             const isCmd = body.startsWith(config.PREFIX);
