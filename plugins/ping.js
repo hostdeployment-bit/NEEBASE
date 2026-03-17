@@ -2,7 +2,7 @@ const { performance } = require('perf_hooks');
 
 module.exports = {
     cmd: "ping",
-    alias: ["p", "speed"],
+    alias: ["p", "fast"],
     desc: "Check bot speed",
     category: "MAIN",
     async execute(conn, m) {
