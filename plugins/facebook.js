@@ -7,14 +7,14 @@ module.exports = {
     category: "DOWNLOAD",
     async execute(conn, m, { text }) {
         // --- MATCHING THE URL.JS STYLE ---
-        // Ensures input is strictly treated as a string to avoid .match/split errors
+        // Prevents crashes by ensuring 'text' is strictly handled as a string
         let url = (text && typeof text === 'string') ? text.trim() : "";
 
         if (!url) {
             return m.reply("📘 *ᴘᴏᴘᴋɪᴅ-ᴍᴅ ꜰʙ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\n*Usage:* .fb <facebook link>");
         }
 
-        // Basic Regex check for Facebook domains
+        // Basic domain validation
         if (!/facebook\.com|fb\.watch/i.test(url)) {
             return m.reply("❌ *ɪɴᴠᴀʟɪᴅ ʟɪɴᴋ.* ᴘʟᴇᴀꜱᴇ ꜱᴇɴᴅ ᴀ ᴠᴀʟɪᴅ ꜰᴀᴄᴇʙᴏᴏᴋ ᴠɪᴅᴇᴏ ᴜʀʟ.");
         }
@@ -22,18 +22,18 @@ module.exports = {
         try {
             await m.react("📥");
 
-            // Qasim API Endpoint (Matches your successful JSON test)
+            // Qasim API Endpoint (Matches your successful JSON test results)
             const apiUrl = `https://gtech-api-xtp1.onrender.com/api/video/fb?apikey=APIKEY&url=${encodeURIComponent(url)}`;
             const res = await axios.get(apiUrl, { timeout: 60000 });
 
-            // Targeted path: res.data.result.media
+            // Extraction path: res.data.result.media
             const media = res?.data?.result?.media;
 
             if (!res.data.status || !media) {
                 throw new Error("Video not found or link is private.");
             }
 
-            // Quality selection logic
+            // Quality selection logic: HD High first, SD Standard fallback
             const videoUrl = media.video_url_hd || media.video_url_sd;
             if (!videoUrl) throw new Error("Could not extract video URL.");
 
@@ -44,9 +44,9 @@ module.exports = {
 
             await m.react("✅");
 
-            // --- THE AUTO-BRANDING FIX ---
-            // Just like url.js, we pass the object to m.reply
-            // This forces serialize.js to attach the newsletter context automatically
+            // --- THE AUTO-BRANDING EXECUTION ---
+            // Just like your tourl.js, passing the media object to m.reply 
+            // ensures lib/serialize attaches your newsletter info automatically.
             return await m.reply({ 
                 video: { url: videoUrl }, 
                 mimetype: 'video/mp4', 
