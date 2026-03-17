@@ -1,13 +1,12 @@
 const axios = require('axios');
-const config = require("../config");
 
 module.exports = {
     cmd: "facebook",
     alias: ["fb", "fbdl"],
-    desc: "Download Facebook videos with Full Newsletter branding",
+    desc: "Download Facebook videos",
     category: "DOWNLOAD",
     async execute(conn, m, { text }) {
-        // Safety check to prevent .match/split errors
+        // Safe string handling to prevent crashes
         let url = (text && typeof text === 'string') ? text.trim() : "";
 
         if (!url) {
@@ -17,7 +16,9 @@ module.exports = {
         try {
             await m.react("📥");
 
+            // API Endpoint using the working Qasim API
             const apiUrl = `https://gtech-api-xtp1.onrender.com/api/video/fb?apikey=APIKEY&url=${encodeURIComponent(url)}`;
+            
             const res = await axios.get(apiUrl, { timeout: 60000 });
             const media = res?.data?.result?.media;
 
@@ -26,30 +27,25 @@ module.exports = {
             }
 
             const videoUrl = media.video_url_hd || media.video_url_sd;
+            const title = media.title || "Facebook Video";
+
+            if (!videoUrl) throw new Error("Could not extract video URL.");
+
             const caption = `📘 *𝐅𝐀𝐂𝐄𝐁𝐎𝐎𝐊 𝐃𝐎𝐖𝐍𝐋𝐎𝐀𝐃𝐄𝐑*\n\n` +
-                            `🎬 *Title:* ${media.title || "FB Video"}\n` +
+                            `🎬 *Title:* ${title}\n` +
                             `🎞 *Quality:* ${media.video_url_hd ? 'HD High' : 'SD Standard'}\n\n` +
                             `> 𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀ɪɴ𝖾 𝟤𝟢𝟤𝟨 🇰🇪`;
 
             await m.react("✅");
 
-            // --- THE PRO FIX FOR NEWSLETTER DISPLAY ---
-            return await conn.sendMessage(m.from, { 
+            // --- THE FIX ---
+            // Using m.reply just like your tourl.js
+            // This ensures your serialize.js adds the newsletter automatically
+            return await m.reply({ 
                 video: { url: videoUrl }, 
                 mimetype: 'video/mp4', 
-                caption: caption,
-                contextInfo: {
-                    mentionedJid: [m.sender],
-                    forwardingScore: 999,
-                    isForwarded: true,
-                    // These 3 lines are what trigger the Newsletter name display
-                    forwardedNewsletterMessageInfo: {
-                        newsletterJid: config.NEWSLETTER_JID || '120363423997837331@newsletter',
-                        newsletterName: config.OWNER_NAME || '𝐏𝐎𝐏𝐊𝐈𝐃',
-                        serverMessageId: 1
-                    }
-                }
-            }, { quoted: m });
+                caption: caption 
+            });
 
         } catch (err) {
             console.error('FB DL Error:', err);
