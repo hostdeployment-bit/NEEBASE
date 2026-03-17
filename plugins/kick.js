@@ -3,45 +3,33 @@ const { isBotAdmin, isSenderAdmin, jidToNum } = require('../lib/utils')
 module.exports = {
     cmd: "kick",
     alias: ["remove", "vuta"],
-    desc: "Remove a member",
+    desc: "Remove member from group",
     category: "admin",
     isGroup: true,
-    async execute(conn, m, { isOwner, participants }) {
+    async execute(conn, m, { isOwner }) {
         try {
-            // 1. Check Bot & Sender Permissions
-            if (!await isBotAdmin(conn, m.from)) return m.reply("❌ *ᴇʀʀᴏʀ:* I need Admin rights.")
-            if (!isOwner && !await isSenderAdmin(conn, m.from, m.sender)) return m.reply("❌ *ᴀᴅᴍɪɴs ᴏɴʟʏ*")
+            if (!await isBotAdmin(conn, m.from)) return m.reply("❌ *Error:* I need Admin rights.")
+            if (!isOwner && !await isSenderAdmin(conn, m.from, m.sender)) return m.reply("❌ *Restricted:* Admins only.")
 
-            // 2. THE ADVANCED TARGET FIX: Checks mentions, then quoted, then text
-            let target = m.mentionedJid?.[0] || (m.quoted ? m.quoted.sender : null);
-            
-            // Extra check: if user typed the number manually (e.g., .kick 254...)
-            if (!target && m.text) {
-                let input = m.text.replace(/[^0-9]/g, '');
-                if (input.length >= 10) target = input + '@s.whatsapp.net';
-            }
+            // --- THE POPKID-MD TARGET LOGIC ---
+            let target = m.message?.extendedTextMessage?.contextInfo?.mentionedJid?.[0] || m.message?.extendedTextMessage?.contextInfo?.participant
+            if (!target) return m.reply("⚠️ *Tag or reply to a user*")
 
-            if (!target) return m.reply("⚠️ *ᴛᴀɢ ᴏʀ ʀᴇᴘʟʏ ᴛᴏ ᴀ ᴜsᴇʀ*")
+            const targetJid = target.replace(/:[0-9]+@/, '@')
 
-            // 3. Prevent Self-Kick or Owner-Kick
-            const botId = conn.user.id.split(':')[0] + '@s.whatsapp.net';
-            if (target === botId) return m.reply("🚫 *ɪ ᴄᴀɴɴᴏᴛ ᴋɪᴄᴋ ᴍʏsᴇʟꜰ!*")
-            // Assuming your owner number is in config
-            // if (target.includes(config.OWNER_NUMBER)) return m.reply("🚫 *ɪ ᴄᴀɴɴᴏᴛ ᴋɪᴄᴋ ᴍʏ ᴄʀᴇᴀᴛᴏʀ!*")
-
+            await conn.groupParticipantsUpdate(m.from, [targetJid], 'remove')
             await m.react("👞")
-            await conn.groupParticipantsUpdate(m.from, [target], 'remove')
-            
+
             const successText = `✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐔𝐏𝐃𝐀𝐓𝐄* ✨\n\n` +
-                                `👞 *ᴀᴄᴛɪᴏɴ:* User Kick\n` +
-                                `👤 *ᴜsᴇʀ:* @${jidToNum(target)}\n` +
-                                `✅ *sᴛᴀᴛᴜs:* Successfully Removed\n\n` +
+                                `👞 *Action:* User Kick\n` +
+                                `👤 *User:* @${jidToNum(targetJid)}\n` +
+                                `✅ *Status:* Successfully Removed\n\n` +
                                 `> *Mission Completed* 🛡️`;
 
-            m.reply(successText, { mentions: [target] })
-        } catch (e) { 
-            console.error(e)
-            m.reply("❌ *ᴀᴄᴛɪᴏɴ ꜰᴀɪʟᴇᴅ:* Ensure the target is still in the group.") 
+            m.reply(successText, { mentions: [targetJid] })
+
+        } catch (e) {
+            m.reply("❌ *Action Failed*")
         }
     }
 }
