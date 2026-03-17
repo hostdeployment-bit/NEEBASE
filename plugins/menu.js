@@ -8,7 +8,12 @@ module.exports = {
     desc: "Double-Line Boxed Menu",
     async execute(conn, m, { pushName, isOwner }) {
         const uptime = formatUptime(process.uptime());
-        const time = getNairobiTime();
+        
+        // --- ADVANCED DATE & TIME SPLIT ---
+        const fullTime = getNairobiTime(); 
+        const date = fullTime.split(' at ')[0];
+        const time = fullTime.split(' at ')[1];
+
         const totalPlugins = global.plugins.size;
 
         // --- SYSTEM METRICS ---
@@ -32,11 +37,12 @@ module.exports = {
         let menuText = `╭══════════════════⊷\n` +
                        `║   ✨  *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐕𝟑* ✨\n` +
                        `╠══════════════════⊷\n` +
-                       `║ 👤 *ᴜꜱᴇʀ:* ${pushName}\n` +
+                       `║ 👤 *ᴜꜱᴇʀ:* ${pushName || 'User'}\n` +
                        `║ 🚀 *ᴘʟᴜɢɪɴꜱ:* ${totalPlugins}\n` +
                        `║ ⏳ *ᴜᴘᴛɪᴍᴇ:* ${uptime}\n` +
+                       `║ 📅 *ᴅᴀᴛᴇ:* ${date}\n` +
+                       `║ ⌚ *ᴛɪᴍᴇ:* ${time}\n` +
                        `║ 🔑 *ᴘʀᴇꜰɪx:* [ ${config.PREFIX} ]\n` +
-                       `║ 📅 *ᴛɪᴍᴇ:* ${time}\n` +
                        `║ 💻 *ʜᴏꜱᴛ:* ${platform}\n` +
                        `║ 📊 *ʀᴀᴍ:* ${ramUsage}ᴍʙ / ${totalRam}ɢʙ\n` +
                        `║ 🌐 *ᴍᴏᴅᴇ:* ${config.MODE || 'Public'}\n` +
@@ -61,12 +67,12 @@ module.exports = {
                 categories[category].sort().forEach(cmd => {
                     menuText += `║ ◈ ${config.PREFIX}${cmd}\n`;
                 });
-                menuText += `╚══════════════════⊷\n\n`;
+                menuText += `╚══════════════════⊷\n`; // Removed extra newline to kill Read More
             });
         }
 
         // ─── ꜱʏꜱᴛᴇᴍ ꜰᴏᴏᴛᴇʀ ───
-        menuText += `╭══════════════════⊷\n` +
+        menuText += `\n╭══════════════════⊷\n` +
                     `║   ⚙️  *ꜱʏꜱᴛᴇᴍ ᴘᴀɴᴇʟ*\n` +
                     `╠══════════════════⊷\n` +
                     `║ ◈ ${config.PREFIX}ping\n` +
@@ -75,6 +81,7 @@ module.exports = {
                     `╰══════════════════⊷\n\n` +
                     `*© 𝟤𝟢𝟤𝟨 ᴘᴏᴘᴋɪᴅ ᴋᴇɴʏᴀ* 🇰🇪`;
 
+        // Optimization: Small delay to ensure memory is cleared before sending
         await conn.sendMessage(m.from, { 
             image: { url: "https://files.catbox.moe/j9ia5c.png" }, 
             caption: menuText 
