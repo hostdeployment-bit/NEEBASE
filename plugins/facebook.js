@@ -1,57 +1,52 @@
+Fix on this
+
 const axios = require('axios');
 
 module.exports = {
     cmd: "facebook",
     alias: ["fb", "fbdl"],
-    desc: "Download Facebook videos with Pro Branding",
+    desc: "Download Facebook videos using Qasim API",
     category: "DOWNLOAD",
     async execute(conn, m, { text }) {
-        // --- THE PRO FIX: NO MORE .MATCH ERROR ---
-        // We force the input to be a string immediately
-        let input = text || m.body || '';
-        if (typeof input !== 'string') input = input.toString();
+        const url = text;
 
-        // Extract the URL from the input string
-        let url = input.replace(m.prefix + m.command, '').trim();
-        
-        // Fallback: If still empty, check if we are replying to a link
-        if (!url && m.quoted) {
-            url = m.quoted.body || m.quoted.text || '';
+        if (!url) {
+            return m.reply("📘 *ᴘᴏᴘᴋɪᴅ-ᴍᴅ ꜰʙ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\n*Usage:* .fb <facebook link>");
         }
-
-        if (!url || url.trim() === "") {
-            return m.reply("📘 *ᴘᴏᴘᴋɪᴅ-ᴍᴅ ꜰʙ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\n*Usage:* .fb <link>");
-        }
-
-        // Final URL cleaning
-        url = url.trim().split(/\s+/)[0]; 
 
         try {
             await m.react("📥");
 
-            // API Endpoint using the working Qasim structure
+            // Updated Endpoint and parameters based on your successful test
             const apiUrl = `https://gtech-api-xtp1.onrender.com/api/video/fb?apikey=APIKEY&url=${encodeURIComponent(url)}`;
+            
             const res = await axios.get(apiUrl, { timeout: 60000 });
+
+            // Targeting the correct JSON path: res.data.result.media
             const media = res?.data?.result?.media;
 
             if (!res.data.status || !media) {
                 throw new Error("Video not found or link is private.");
             }
 
+            // Pick HD if available, otherwise SD
             const videoUrl = media.video_url_hd || media.video_url_sd;
-            const caption = `📘 *𝐅𝐀𝐂𝐄𝐁𝐎𝐎𝐊 𝐃𝐎𝐖𝐍𝐋𝐎𝐀𝐃𝐄𝐑*\n\n` +
-                            `🎬 *Title:* ${media.title || "FB Video"}\n` +
+            const title = media.title || "Facebook Video";
+
+            if (!videoUrl) throw new Error("Could not extract video URL.");
+
+            const caption = `📘 *ꜰᴀᴄᴇʙᴏᴏᴋ ᴅᴏᴡɴʟᴏᴀᴅᴇʀ*\n\n` +
+                            `🎬 *Title:* ${title}\n` +
                             `🎞 *Quality:* ${media.video_url_hd ? 'HD High' : 'SD Standard'}\n\n` +
                             `> 𝖯𝗈𝗉𝗄𝗂𝖽 𝖬𝖽 𝖤𝗇𝗀ɪɴ𝖾 𝟤𝟢𝟤𝟨 🇰🇪`;
 
             await m.react("✅");
 
-            // Smart m.reply automatically handles the Newsletter context
-            return await m.reply({ 
+            return await conn.sendMessage(m.from, { 
                 video: { url: videoUrl }, 
                 mimetype: 'video/mp4', 
                 caption: caption 
-            });
+            }, { quoted: m });
 
         } catch (err) {
             console.error('FB DL Error:', err);
