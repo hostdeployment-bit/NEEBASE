@@ -5,7 +5,7 @@ const { formatUptime, getNairobiTime } = require("../lib/utils");
 module.exports = {
     cmd: "menu",
     alias: ["help", "list"],
-    desc: "Vertical Double-Line Menu",
+    desc: "Vertical Double-Line Menu with GitHub Image",
     async execute(conn, m, { pushName }) {
         const uptime = formatUptime(process.uptime());
         
@@ -47,30 +47,22 @@ module.exports = {
                 menuText += `║ ${emoji}  *${category}*\n`;
                 menuText += `╠══════════════════⊷\n`;
                 
-                // Listing commands downwards
                 categories[category].sort().forEach(cmd => {
                     menuText += `║ ◈ ${config.PREFIX}${cmd}\n`;
                 });
-                menuText += `╚══════════════════⊷\n`; // No extra space here to save height
+                menuText += `╚══════════════════⊷\n`; 
             });
         }
 
         menuText += `\n*© 𝟤𝟢𝟤𝟨 ᴘᴏᴘᴋɪᴅ ᴋᴇɴʏᴀ* 🇰🇪`;
 
-        // ─── INSTANT RESPONSE FIX ───
-        // This is 100x faster than sending a full image file
+        // ─── THE GITHUB IMAGE FIX ───
+        // Use the RAW link of your GitHub image here for speed
+        const githubImageUrl = "https://raw.githubusercontent.com/hostdeployment-bit/NEEBASE/main/popkid.jpg";
+
         return await conn.sendMessage(m.from, { 
-            text: menuText,
-            contextInfo: {
-                externalAdReply: {
-                    title: "𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐕𝟑 𝐄𝐍𝐆𝐈𝐍𝐄",
-                    body: "ᴛʜᴇ ꜰᴀꜱᴛᴇꜱᴛ ʙᴏᴛ ɪɴ ᴋᴇɴʏᴀ 🇰🇪",
-                    thumbnailUrl: "https://files.catbox.moe/j9ia5c.png",
-                    sourceUrl: "https://github.com/popkidmd",
-                    mediaType: 1,
-                    renderLargerThumbnail: true
-                }
-            }
+            image: { url: githubImageUrl }, 
+            caption: menuText 
         }, { quoted: m });
     }
 };
