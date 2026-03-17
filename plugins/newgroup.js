@@ -1,41 +1,64 @@
+const delay = ms => new Promise(res => setTimeout(res, ms))
+
 module.exports = {
     cmd: "newgroup",
     alias: ["creategroup"],
-    desc: "Create a new group with the bot",
+    desc: "Create a new group",
     category: "owner",
+
     async execute(conn, m, { text, isOwner }) {
         if (!isOwner) return m.reply("👑 *Owner Only*")
-        if (!text) return m.reply("📝 *Usage:* .newgroup [Name]")
+        if (!text) return m.reply("📝 *Usage:* .newgroup Group Name")
 
         try {
             await m.react("🏗️")
 
-            // 1. CLEAN THE JID: Remove the :suffix from m.sender if it exists
-            const myJid = m.sender.split(':')[0] + '@s.whatsapp.net'
+            // ✅ Create group safely
+            const res = await conn.groupCreate(text.trim(), [m.sender])
 
-            // 2. CREATE GROUP: We must pass an array [myJid]
-            // We use text.trim() to ensure the name is clean
-            const group = await conn.groupCreate(text.trim(), [myJid])
+            if (!res || !res.id) {
+                return m.reply("❌ *Failed to create group (No response from WhatsApp)*")
+            }
 
-            // 3. FETCH LINK: Sometimes there is a small delay, so we wait a second
-            await new Promise(resolve => setTimeout(resolve, 1000))
-            const code = await conn.groupInviteCode(group.id)
+            const groupId = res.id
 
-            const successMsg = `✨ *𝐏𝐎𝐏𝐊𝐈𝐃-𝐌𝐃 𝐆𝐑𝐎𝐔𝐏 𝐂𝐑𝐄𝐀𝐓𝐎𝐑* ✨\n\n` +
-                               `✅ *Status:* Group Created\n` +
-                               `📝 *Name:* ${text}\n` +
-                               `🔗 *Link:* https://chat.whatsapp.com/${code}\n\n` +
-                               `> *Powered by Popkid Kenya* 🇰🇪`
+            // small delay (important for WhatsApp stability)
+            await delay(1500)
 
-            m.reply(successMsg)
+            // ✅ Get invite link safely
+            let invite = ""
+            try {
+                invite = await conn.groupInviteCode(groupId)
+            } catch {
+                invite = "Unavailable"
+            }
+
+            // ✅ Final response
+            await conn.sendMessage(m.from, {
+                text:
+`✅ *GROUP CREATED SUCCESSFULLY!*
+
+📛 *Name:* ${text}
+🆔 *ID:* ${groupId}
+
+🔗 *Invite Link:*
+https://chat.whatsapp.com/${invite}
+
+> *ᴘᴏᴘᴋɪᴅ-ᴍᴅ ᴇɴɢɪɴᴇ* 🚀`
+            }, { quoted: m })
 
         } catch (e) {
-            console.error("Newgroup Error:", e)
-            // Specific error check
-            if (e.toString().includes('406')) {
-                return m.reply("❌ *Failed:* Check if your number allows being added to groups by others.")
-            }
-            m.reply("❌ *Failed to create group:* Ensure the name isn't too long or containing illegal characters.")
+            console.error("GROUP CREATE ERROR:", e)
+
+            // Better error feedback
+            m.reply(`❌ *Failed to create group*
+
+⚠️ Possible reasons:
+• WhatsApp blocked request temporarily  
+• Too many groups created  
+• Invalid group name  
+
+Try again after a few seconds.`)
         }
     }
 }
