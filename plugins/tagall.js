@@ -2,7 +2,8 @@ const { isSenderAdmin, jidToNum } = require('../lib/utils')
 
 module.exports = {
     cmd: "tagall",
-    desc: "Tag all members with a list",
+    alias: ["hidetag", "htag"],
+    desc: "Tag all members with a clean list",
     category: "admin",
     isGroup: true,
     async execute(conn, m, { text, isOwner }) {
@@ -14,16 +15,28 @@ module.exports = {
             
             let tagMsg = `📢 *𝐀𝐓𝐓𝐄𝐍𝐓𝐈𝐎𝐍 𝐄𝐕𝐄𝐑𝐘𝐎𝐍𝐄* 📢\n\n`
             tagMsg += text ? `📝 *Message:* ${text}\n\n` : ''
-            tagMsg += `👥 *Total:* ${participants.length}\n\n`
+            tagMsg += `👥 *Total Members:* ${participants.length}\n\n`
             
+            // --- THE FIX: Clean JID to Number ---
             for (let mem of participants) {
-                tagMsg += ` ❍ @${jidToNum(mem)}\n`
+                // jidToNum strips the @s.whatsapp.net so it looks like 254...
+                const num = jidToNum(mem)
+                tagMsg += ` ❍ @${num}\n`
             }
             
+            tagMsg += `\n> *ᴘᴏᴘᴋɪᴅ-ᴍᴅ ᴇɴɢɪɴᴇ* 🇰🇪`
+
             await m.react("📢")
-            await conn.sendMessage(m.from, { text: tagMsg, mentions: participants }, { quoted: m })
+            
+            // Sending the message with mentions array makes numbers turn into Names
+            await conn.sendMessage(m.from, { 
+                text: tagMsg, 
+                mentions: participants 
+            }, { quoted: m })
+
         } catch (e) {
-            m.reply("❌ *Failed to tag all*")
+            console.error(e)
+            m.reply("❌ *Failed to tag all members*")
         }
     }
 }
