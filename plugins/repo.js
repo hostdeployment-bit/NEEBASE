@@ -1,18 +1,15 @@
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
 const { performance } = require('perf_hooks');
 
 module.exports = {
     cmd: "repo",
     alias: ["git", "script", "sc"],
-    desc: "Get repository information with image",
+    desc: "Get repository information",
     category: "MAIN",
     async execute(conn, m) {
         const start = performance.now();
         const repoUrl = "https://api.github.com/repos/popkidc/AUTO-MD";
-        const imagePath = path.join(__dirname, '../popkid.jpg'); // Adjusts path to find it in root
-
+        
         try {
             const response = await axios.get(repoUrl);
             const { stargazers_count, forks_count, open_issues, owner, name } = response.data;
@@ -33,20 +30,9 @@ module.exports = {
             `.trim();
 
             await m.react("📂");
-
-            // Check if image exists before sending
-            if (fs.existsSync(imagePath)) {
-                await conn.sendMessage(m.chat, { 
-                    image: fs.readFileSync(imagePath), 
-                    caption: repoMsg 
-                }, { quoted: m });
-            } else {
-                // Fallback to text if image is missing
-                await m.reply(repoMsg);
-            }
-
+            await m.reply(repoMsg);
         } catch (e) {
-            await m.reply("❌ Error fetching repository data.");
+            await m.reply("❌ Error fetching repository data. Please try again later.");
             console.error(e);
         }
     }
