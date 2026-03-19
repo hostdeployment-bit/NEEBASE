@@ -16,19 +16,16 @@ module.exports = {
             const metadata = await conn.groupMetadata(m.from)
             const participants = metadata.participants
 
-            let tagMsg = `💜 *𝐀𝐓𝐓𝐄𝐍𝐓𝐈𝐎𝐍 𝐄𝐕𝐄𝐑𝐘𝐎𝐍𝐄* 💜\n\n`
+            let tagMsg = `📢 *𝐀𝐓𝐓𝐄𝐍𝐓𝐈𝐎𝐍 𝐄𝐕𝐄𝐑𝐘𝐎𝐍𝐄* 📢\n\n`
             if (text) tagMsg += `📝 *Message:* ${text}\n\n`
             tagMsg += `👥 *Total Members:* ${participants.length}\n\n`
 
             for (let participant of participants) {
-                const jid = participant.id
+                // We fetch the name from the participant object or fall back to the ID split
+                // This prevents the "conn.contacts" undefined error
+                const name = participant.notify || participant.verifiedName || participant.name || participant.id.split('@')[0]
                 
-                // 1. Try to get name from the bot's contact store
-                // 2. Fallback to metadata notify name
-                // 3. Last resort: split the JID number
-                const contact = conn.contacts[jid] || {}
-                const name = contact.notify || contact.name || participant.notify || jid.split('@')[0]
-                
+                // Using your exact requested style
                 tagMsg += `@${name}\n`
             }
 
@@ -46,7 +43,7 @@ module.exports = {
             )
 
         } catch (e) {
-            console.error(e)
+            console.error("TagAll Error:", e)
             m.reply("❌ *Failed to tag all members*")
         }
     }
