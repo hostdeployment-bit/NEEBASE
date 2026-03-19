@@ -1,32 +1,20 @@
-/**
- * NEEBASE Plugin: Simple Repository
- * Base: Master Engine 2026 (Unified Edition)
- */
-
 module.exports = {
     cmd: "repo",
     alias: ["sc", "script", "source"],
-    category: "main",
-    desc: "To get the bot repository link",
+    desc: "Get bot repository link",
+    category: "MAIN",
     execute: async (conn, mek, context) => {
         const { reply, pushname } = context;
 
-        const repoText = `
-🚀 *POPKID-MD: NEEBASE REPO*
+        const repoText = `🚀 *ᴘᴏᴘᴋɪᴅ-ᴍᴅ: ɴᴇᴇʙᴀsᴇ ʀᴇᴘᴏ*
 
 👋 *Hey ${pushname},*
 Here is the official script for the Master Engine 2026.
 
-📂 *Link:* https://github.com/popkidc/AUTO-MD
+📂 *Link:* https://github.com/hostdeployment-bit/NEEBASE
 
-> Powered by Popkid Kenya 🇰🇪
-`.trim();
+> Powered by Popkid Kenya 🇰🇪`.trim();
 
-        try {
-            // Sending as a simple text message to ensure it never fails
-            return await reply(repoText);
-        } catch (e) {
-            console.error('[REPO SIMPLE ERROR]:', e);
-        }
+        return await reply(repoText);
     }
 };
