@@ -3,7 +3,7 @@ const { isSenderAdmin } = require('../lib/utils')
 module.exports = {
     cmd: "tagall",
     alias: ["hidetag", "htag"],
-    desc: "Tag all members with a clean list",
+    desc: "Tag all members with names",
     category: "admin",
     isGroup: true,
 
@@ -20,9 +20,11 @@ module.exports = {
             if (text) tagMsg += `📝 *Message:* ${text}\n\n`
             tagMsg += `👥 *Total Members:* ${participants.length}\n\n`
 
-            // ✅ Updated to strictly use: @${participant.id.split('@')[0]}\n
+            // ✅ Logic to fetch Name first, then fallback to ID split
             for (let participant of participants) {
-                tagMsg += `@${participant.id.split('@')[0]}\n`
+                // Get the name if available, otherwise use the number split style
+                const name = participant.notify || participant.name || participant.id.split('@')[0]
+                tagMsg += `@${name}\n`
             }
 
             tagMsg += `\n> *ᴘᴏᴘᴋɪᴅ-ᴍᴅ ᴇɴɢɪɴᴇ* 🇰🇪`
@@ -33,7 +35,7 @@ module.exports = {
                 m.from,
                 {
                     text: tagMsg,
-                    mentions: participants.map(a => a.id)
+                    mentions: participants.map(a => a.id) // This keeps the blue 'tag' functionality
                 },
                 { quoted: m }
             )
