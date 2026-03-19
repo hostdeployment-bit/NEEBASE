@@ -1,5 +1,4 @@
 const axios = require('axios');
-const fs = require('fs');
 const { performance } = require('perf_hooks');
 
 module.exports = {
@@ -31,13 +30,7 @@ module.exports = {
             `.trim();
 
             await m.react("📂");
-
-            // Sending image with the repo message as the caption
-            await conn.sendMessage(m.chat, { 
-                image: fs.readFileSync("./popkid.jpg"), 
-                caption: repoMsg 
-            }, { quoted: m });
-
+            await m.reply(repoMsg);
         } catch (e) {
             await m.reply("❌ Error fetching repository data. Please try again later.");
             console.error(e);
