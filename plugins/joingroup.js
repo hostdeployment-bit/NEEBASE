@@ -1,91 +1,62 @@
 /**
- * NEEBASE Plugin: Group Joiner & Info Scout
- * Base: Master Engine 2026
- * Features: Invite Code Extraction, Pre-join Info, Owner Restricted
+ * NEEBASE Plugin: Group Joiner
+ * Base: Master Engine 2026 (Unified Edition)
+ * Features: invite link extraction, isCreator check, POPKID-XD Styling
  */
 
 module.exports = {
-    cmd: 'joingroup',
-    alias: ['join', 'gcjoin', 'groupinfo'],
-    category: 'owner',
-    description: 'Join a group via invite link or get group info from link',
-    execute: async (sock, m, context) => {
-        // Standard NEEBASE context mapping
-        const { text, args, isOwner } = context;
-        const msgArgs = text ? text.split(' ') : args;
-        
-        // Ensure this stays Owner Only as per your requirement
-        if (!isOwner) return m.reply("❌ This is a Developer-Restricted command, Popkid.");
+    cmd: "join",
+    alias: ["joinme", "f_join", "joingroup"],
+    category: "group",
+    desc: "To Join a Group from Invite link",
+    use: '.join < Group Link >',
+    filename: __filename,
+    execute: async (conn, mek, context) => {
+        // --- 1. Map NEEBASE Context to your Logic ---
+        const { 
+            reply, q, quoted, pushname, isCreator, from 
+        } = context;
 
-        const pluginContext = {
-            chatId: m.chat,
-            senderId: m.sender,
-            senderIsOwnerOrSudo: isOwner,
-            rawText: m.body, // Passing raw text to check if it's .groupinfo
-            channelInfo: {}, 
-            ...context
-        };
+        try {
+            // Permission messages
+            const msr = {
+                own_cmd: "⚠️ *Access Denied*\n\nYou don't have permission to use this command. Only my *Creator* can perform this action."
+            };
 
-        return await handler(sock, m, msgArgs, pluginContext);
-    }
-};
+            // --- 2. Security Check (isCreator) ---
+            if (!isCreator) return reply(msr.own_cmd);
 
-async function handler(sock, message, args, context) {
-    const chatId = context.chatId || message.key.remoteJid;
-    const channelInfo = context.channelInfo || {};
-    
-    // Logic to check which command was actually called
-    const rawText = (context.rawText || '').toLowerCase();
-    const isInfo = rawText.includes('groupinfo');
-    
-    const input = args[0];
+            // --- 3. Input Check ---
+            if (!q && !quoted) {
+                return reply("📍 *Please provide a Group Link*️ 🖇️\n\n*Usage:* `.join <link>` or reply to a link.");
+            }
 
-    if (!input) {
-        return await sock.sendMessage(chatId, {
-            text: `*${isInfo ? '🔍 NEEBASE INFO SCOUT' : '🚪 NEEBASE GROUP JOINER'}*\n\n` +
-                `*Usage:*\n` +
-                `• \`.joingroup <link/code>\` \n` +
-                `• \`.groupinfo <link/code>\` (Scout without joining)`,
-            ...channelInfo
-        }, { quoted: message });
-    }
+            let groupLink;
+            const isUrl = (url) => url.includes('chat.whatsapp.com');
 
-    // Clean the link to get just the code
-    const code = input.replace('https://chat.whatsapp.com/', '').trim();
+            // --- 4. Link Extraction Logic ---
+            if (quoted && quoted.text && isUrl(quoted.text)) {
+                groupLink = quoted.text.split('https://chat.whatsapp.com/')[1];
+            } else if (q && isUrl(q)) {
+                groupLink = q.split('https://chat.whatsapp.com/')[1];
+            } else if (q) {
+                // Handle cases where only the code is provided
+                groupLink = q.trim();
+            }
 
-    try {
-        if (isInfo) {
-            // Fetching info without joining
-            const info = await sock.groupGetInviteInfo(code);
-            const members = info.participants?.length || 0;
+            if (!groupLink) return reply("❌ *Invalid Group Link* 🖇️\n\nMake sure it is a valid WhatsApp invite URL.");
+
+            // --- 5. Execution (Accept Invite) ---
+            await conn.groupAcceptInvite(groupLink);
+
+            // --- 6. Stylish Success Message ---
+            const successText = `✨ *POPKID-XD JOINER* ✨\n\n✔️ *Successfully Joined*\n👤 *Requested By:* ${pushname}\n\n> *I am now a member of the group. Ready to manage!*`;
             
-            return await sock.sendMessage(chatId, {
-                text: `╔═══════════════════════╗\n` +
-                    `║    🔍 *GROUP SCOUT* ║\n` +
-                    `╚═══════════════════════╝\n\n` +
-                    `*Name:* ${info.subject || 'Unknown'}\n` +
-                    `*Desc:* ${info.desc || 'No description'}\n` +
-                    `*Members:* ${members}\n` +
-                    `*Created:* ${info.creation ? new Date(info.creation * 1000).toLocaleDateString() : 'Unknown'}\n\n` +
-                    `*ID:* \`${info.id}\``,
-                ...channelInfo
-            }, { quoted: message });
-            
-        } else {
-            // Accepting the invite
-            const response = await sock.groupAcceptInvite(code);
-            
-            return await sock.sendMessage(chatId, {
-                text: `✅ *NEEBASE JOINED SUCCESSFULLY!*\n\n*Target JID:* \`${response}\``,
-                ...channelInfo
-            }, { quoted: message });
+            return reply(successText);
+
+        } catch (e) {
+            console.error('[JOIN ERROR]:', e);
+            return reply(`❌ *Failed to Join Group*\n\n*Reason:* ${e.message || "Invalid or Revoked Link"}`);
         }
     }
-    catch (e) {
-        console.error('[JOINGROUP] Error:', e.message);
-        await sock.sendMessage(chatId, {
-            text: `❌ *NEEBASE Error:* ${e.message}`,
-            ...channelInfo
-        }, { quoted: message });
-    }
-}
+};
