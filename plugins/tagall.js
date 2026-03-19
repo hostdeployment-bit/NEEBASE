@@ -16,14 +16,19 @@ module.exports = {
             const metadata = await conn.groupMetadata(m.from)
             const participants = metadata.participants
 
-            let tagMsg = `📢 *𝐀𝐓𝐓𝐄𝐍𝐓𝐈𝐎𝐍 𝐄𝐕𝐄𝐑𝐘𝐎𝐍𝐄* 📢\n\n`
+            let tagMsg = `💜 *𝐀𝐓𝐓𝐄𝐍𝐓𝐈𝐎𝐍 𝐄𝐕𝐄𝐑𝐘𝐎𝐍𝐄* 💜\n\n`
             if (text) tagMsg += `📝 *Message:* ${text}\n\n`
             tagMsg += `👥 *Total Members:* ${participants.length}\n\n`
 
-            // ✅ Logic to fetch Name first, then fallback to ID split
             for (let participant of participants) {
-                // Get the name if available, otherwise use the number split style
-                const name = participant.notify || participant.name || participant.id.split('@')[0]
+                const jid = participant.id
+                
+                // 1. Try to get name from the bot's contact store
+                // 2. Fallback to metadata notify name
+                // 3. Last resort: split the JID number
+                const contact = conn.contacts[jid] || {}
+                const name = contact.notify || contact.name || participant.notify || jid.split('@')[0]
+                
                 tagMsg += `@${name}\n`
             }
 
@@ -35,7 +40,7 @@ module.exports = {
                 m.from,
                 {
                     text: tagMsg,
-                    mentions: participants.map(a => a.id) // This keeps the blue 'tag' functionality
+                    mentions: participants.map(a => a.id)
                 },
                 { quoted: m }
             )
