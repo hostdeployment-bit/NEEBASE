@@ -3,14 +3,11 @@ module.exports = {
     alias: ["archive", "unarchive", "unarchivechat"],
     desc: "Archive or unarchive the current chat",
     category: "OWNER",
-    isOwner: true, // Restricted to Popkid (Owner)
+    isOwner: true,
 
-    async execute(conn, m, { args, text }) {
+    async execute(conn, m, { args }) {
         const chatId = m.chat;
         const body = m.body.toLowerCase();
-
-        // 1. Auto-detect action from the command used
-        // Check if the user typed .unarchive or .unarchivechat
         const isUnarchiveCmd = body.includes('unarchive');
         
         let action = args[0]?.toLowerCase();
@@ -18,15 +15,21 @@ module.exports = {
             action = isUnarchiveCmd ? 'unarchive' : 'archive';
         }
 
-        // 2. Validation
         if (!['archive', 'unarchive'].includes(action)) {
-            return m.reply(`*📦 ARCHIVE CHAT*\n\n*Usage:*\n• \`.archivechat archive\`\n• \`.archivechat unarchive\`\n\n_Or use aliases: \`.archive\` / \`.unarchive\`_`);
+            return m.reply(`*📦 ARCHIVE CHAT*\n\nUsage: \`.archive\` or \`.unarchive\``);
         }
 
         const shouldArchive = action === 'archive';
 
         try {
-            // 3. Execute Chat Modification
+            // 1. Send the reply FIRST
+            // If we send it after archiving, the message will force the chat to unarchive
+            await m.reply(shouldArchive ? `📦 *Archiving this chat...*` : `📂 *Unarchiving this chat...*`);
+
+            // 2. Small delay to ensure the message is fully sent and synced
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // 3. Execute the modification
             await conn.chatModify({
                 archive: shouldArchive,
                 lastMessages: [
@@ -37,16 +40,9 @@ module.exports = {
                 ]
             }, chatId);
 
-            // 4. Success Message
-            const response = shouldArchive 
-                ? `📦 *Chat archived successfully!*` 
-                : `📂 *Chat unarchived successfully!*`;
-            
-            await m.reply(response);
-
         } catch (e) {
             console.error('[ARCHIVECHAT] Error:', e.message);
-            m.reply(`❌ *Failed to ${action} chat:* ${e.message}`);
+            m.reply(`❌ *Failed:* ${e.message}`);
         }
     }
 };
