@@ -14,16 +14,15 @@ module.exports = {
             }
 
             const metadata = await conn.groupMetadata(m.from)
-            const participants = metadata.participants.map(v => v.id)
+            const participants = metadata.participants
 
             let tagMsg = `📢 *𝐀𝐓𝐓𝐄𝐍𝐓𝐈𝐎𝐍 𝐄𝐕𝐄𝐑𝐘𝐎𝐍𝐄* 📢\n\n`
             if (text) tagMsg += `📝 *Message:* ${text}\n\n`
             tagMsg += `👥 *Total Members:* ${participants.length}\n\n`
 
-            // ✅ Proper mention formatting (shows saved names / usernames)
-            for (let mem of participants) {
-                const username = mem.split('@')[0]
-                tagMsg += ` ❍ @${username}\n`
+            // ✅ Updated to strictly use: @${participant.id.split('@')[0]}\n
+            for (let participant of participants) {
+                tagMsg += `@${participant.id.split('@')[0]}\n`
             }
 
             tagMsg += `\n> *ᴘᴏᴘᴋɪᴅ-ᴍᴅ ᴇɴɢɪɴᴇ* 🇰🇪`
@@ -34,7 +33,7 @@ module.exports = {
                 m.from,
                 {
                     text: tagMsg,
-                    mentions: participants
+                    mentions: participants.map(a => a.id)
                 },
                 { quoted: m }
             )
