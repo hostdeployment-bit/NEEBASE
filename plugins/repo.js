@@ -1,20 +1,39 @@
+const axios = require('axios');
+const { performance } = require('perf_hooks');
+
 module.exports = {
     cmd: "repo",
-    alias: ["sc", "script", "source"],
-    desc: "Get bot repository link",
+    alias: ["git", "script", "sc"],
+    desc: "Get repository information",
     category: "MAIN",
-    execute: async (conn, mek, context) => {
-        const { reply, pushname } = context;
+    async execute(conn, m) {
+        const start = performance.now();
+        const repoUrl = "https://api.github.com/repos/popkidc/AUTO-MD";
+        
+        try {
+            const response = await axios.get(repoUrl);
+            const { stargazers_count, forks_count, open_issues, owner, name } = response.data;
+            
+            const end = performance.now();
+            const fetchSpeed = (end - start).toFixed(2);
 
-        const repoText = `🚀 *ᴘᴏᴘᴋɪᴅ-ᴍᴅ: ɴᴇᴇʙᴀsᴇ ʀᴇᴘᴏ*
+            const repoMsg = `
+╭──────────────
+│ 🤖 *ʙᴏᴛ:* ${name.replace(/-/g, ' ')}
+│ 👤 *ᴏᴡɴᴇʀ:* ${owner.login}
+│ ⭐ *sᴛᴀʀs:* ${stargazers_count}
+│ 🍴 *ғᴏʀᴋs:* ${forks_count}
+│ 🛠️ *ɪssᴜᴇs:* ${open_issues}
+│ 🚀 *sᴘᴇᴇᴅ:* ${fetchSpeed} ᴍꜱ
+╰──────────────
+🔗 *ʟɪɴᴋ:* https://github.com/popkidc/AUTO-MD
+            `.trim();
 
-👋 *Hey ${pushname},*
-Here is the official script for the Master Engine 2026.
-
-📂 *Link:* https://github.com/hostdeployment-bit/NEEBASE
-
-> Powered by Popkid Kenya 🇰🇪`.trim();
-
-        return await reply(repoText);
+            await m.react("📂");
+            await m.reply(repoMsg);
+        } catch (e) {
+            await m.reply("❌ Error fetching repository data. Please try again later.");
+            console.error(e);
+        }
     }
 };
