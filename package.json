@@ -1,7 +1,6 @@
 {
   "name": "popkid-md",
   "version": "1.5.0",
-  "type": "module",
   "description": "Multi-Device WhatsApp Bot by Popkid Kenya",
   "main": "index.js",
   "scripts": {
