@@ -7,29 +7,28 @@ module.exports = {
 
     async execute(conn, m, { args }) {
         const chatId = m.chat;
-        const body = m.body.toLowerCase();
-        const isUnarchiveCmd = body.includes('unarchive');
+        const rawText = m.body.toLowerCase();
         
-        let action = args[0]?.toLowerCase();
-        if (!action) {
-            action = isUnarchiveCmd ? 'unarchive' : 'archive';
-        }
+        // Auto-detect action from command name (same as your reference script)
+        const isUnarchive = rawText.startsWith(m.prefix + 'unarchive');
+        const action = args[0]?.toLowerCase() || (isUnarchive ? 'unarchive' : 'archive');
 
         if (!['archive', 'unarchive'].includes(action)) {
-            return m.reply(`*📦 ARCHIVE CHAT*\n\nUsage: \`.archive\` or \`.unarchive\``);
+            return m.reply(`*📦 ARCHIVE CHAT*\n\n*Usage:*\n• \`.archivechat archive\` — Archive this chat\n• \`.archivechat unarchive\` — Unarchive this chat\n\n_Or use aliases: \`.archive\` / \`.unarchive\`_`);
         }
 
         const shouldArchive = action === 'archive';
 
         try {
-            // 1. Send the reply FIRST
-            // If we send it after archiving, the message will force the chat to unarchive
-            await m.reply(shouldArchive ? `📦 *Archiving this chat...*` : `📂 *Unarchiving this chat...*`);
+            // 1. Send the message FIRST. 
+            // If we send it after archive, the chat will pop back out.
+            const statusMsg = shouldArchive ? `📦 *Chat archived!*` : `📂 *Chat unarchived!*`;
+            await m.reply(statusMsg);
 
-            // 2. Small delay to ensure the message is fully sent and synced
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // 2. Small delay to let the message deliver before archiving
+            await new Promise(resolve => setTimeout(resolve, 800));
 
-            // 3. Execute the modification
+            // 3. Perform the Archive logic exactly like the reference script
             await conn.chatModify({
                 archive: shouldArchive,
                 lastMessages: [
@@ -42,7 +41,7 @@ module.exports = {
 
         } catch (e) {
             console.error('[ARCHIVECHAT] Error:', e.message);
-            m.reply(`❌ *Failed:* ${e.message}`);
+            m.reply(`❌ Failed to ${action} chat: ${e.message}`);
         }
     }
 };
