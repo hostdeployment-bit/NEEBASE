@@ -20,15 +20,16 @@ const express = require("express");
 const qrcode = require("qrcode-terminal");
 const util = require("util");
 const { exec } = require("child_process");
+const axios = require("axios"); 
 
 // Internal Libraries
 const { loadSession } = require("./lib/sessionLoader");
 const { sms } = require("./lib/serialize");
-const { GroupEvents } = require("./lib/groupEvents"); // Added Group Events Library
-const { AntilinkHandler } = require("./lib/antilinkHandler"); // Added Antilink Handler Library
-const { AntideleteHandler } = require("./lib/antidelete"); // Added Antidelete Library
-const { handleTagDetection } = require("./lib/tagDetector"); // Added Antitag Detector Library
-const { handleIncomingCall } = require("./lib/callHandler"); // Added Anticall Library
+const { GroupEvents } = require("./lib/groupEvents"); 
+const { AntilinkHandler } = require("./lib/antilinkHandler"); 
+const { AntideleteHandler } = require("./lib/antidelete"); 
+const { handleTagDetection } = require("./lib/tagDetector"); 
+const { handleIncomingCall } = require("./lib/callHandler"); 
 const config = require("./config");
 
 const app = express();
@@ -86,12 +87,10 @@ async function startPopkid() {
         } else if (connection === "open") {
             console.log("✅ POPKID MD: Successfully Connected to WhatsApp!");
             
-            // --- ALWAYS ONLINE LOGIC ---
             if (config.ALWAYS_ONLINE === "true") {
                 await conn.sendPresenceUpdate('available');
             }
 
-            // Auto Follow Channel
             try {
                 await conn.newsletterFollow("120363423997837331@newsletter");
                 console.log("📡 Auto-followed Official Newsletter");
@@ -107,10 +106,8 @@ async function startPopkid() {
 
     conn.ev.on("creds.update", saveCreds);
 
-    // ============ [ CALL EVENT ] ============
     conn.ev.on('call', async (call) => await handleIncomingCall(conn, call));
 
-    // ============ [ GROUP PARTICIPANTS UPDATE HANDLER ] ============
     conn.ev.on('group-participants.update', async (anu) => {
         await GroupEvents(conn, anu);
     });
@@ -121,7 +118,6 @@ async function startPopkid() {
             const mek = chatUpdate.messages[0];
             if (!mek.message) return;
 
-            // ============ [ NEWSLETTER ATTRIBUTION OVERRIDE ] ============
             const originalSendMessage = conn.sendMessage;
             conn.sendMessage = async (jid, content, options = {}) => {
                 const newsletterContext = {
@@ -142,25 +138,19 @@ async function startPopkid() {
                 return originalSendMessage.apply(conn, [jid, content, options]);
             };
 
-            // Handle Ephemeral Messages
             mek.message = (getContentType(mek.message) === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
             
             const from = mek.key.remoteJid;
             const type = getContentType(mek.message);
 
-            // ============ [ STATUS VIEW & REACT LOGIC (MULTI-CONTACT) ] ============
             if (from === 'status@broadcast') {
                 try {
                     const shouldRead = config.AUTO_READ_STATUS === 'true';
                     const shouldReact = config.AUTO_REACT_STATUS === 'true';
-                    
-                    // Improved Participant Detection for All Contacts
                     const statusParticipant = mek.key.participant || mek.participant || mek.key.remoteJid;
 
                     if (statusParticipant && statusParticipant !== 'status@broadcast') {
                         let realJid = statusParticipant;
-                        
-                        // LID-to-JID Stability
                         if (statusParticipant.endsWith('@lid')) {
                             const rawPn = mek.key?.participantPn || mek.key?.senderPn || mek.participantPn;
                             if (rawPn) {
@@ -182,8 +172,7 @@ async function startPopkid() {
                         if (shouldReact) {
                             const reactable = ['imageMessage', 'videoMessage', 'extendedTextMessage', 'conversation', 'audioMessage'];
                             if (reactable.includes(type)) {
-                                // --- DYNAMIC EMOJI LOGIC ---
-                                let emojis = ['🧩', '🌸', '💫', '🫀', '🧿', '🤖', '🥰', '🗿', '💙', '🌝', '🖤', '💚']; // Default
+                                let emojis = ['🧩', '🌸', '💫', '🫀', '🧿', '🤖', '🥰', '🗿', '💙', '🌝', '🖤', '💚']; 
                                 const emojiPath = path.join(__dirname, './database/status_emojis.json');
                                 if (fs.existsSync(emojiPath)) {
                                     const customEmojis = JSON.parse(fs.readFileSync(emojiPath));
@@ -205,7 +194,6 @@ async function startPopkid() {
                 return; 
             }
 
-            // ============ [ PRESENCE & AUTO-REACT LOGIC ] ============
             if (from !== 'status@broadcast' && !mek.key.fromMe) {
                 if (config.AUTO_TYPING === "true") await conn.sendPresenceUpdate('composing', from);
                 if (config.AUTO_RECORDING === "true") await conn.sendPresenceUpdate('recording', from);
@@ -217,16 +205,9 @@ async function startPopkid() {
                 }
             }
 
-            // ============ [ COMMAND & PLUGIN LOGIC ] ============
             const m = sms(conn, mek); 
-            
-            // --- ANTILINK HANDLER ---
             await AntilinkHandler(conn, m, config.OWNER_NUMBER.includes(m.sender.split('@')[0]));
-
-            // --- ANTIDELETE HANDLER ---
             await AntideleteHandler(conn, m);
-
-            // --- ANTITAG HANDLER ---
             await handleTagDetection(conn, m);
 
             const body = m.body || '';
@@ -265,7 +246,6 @@ async function startPopkid() {
 
             const plugin = global.plugins.get(command) || [...global.plugins.values()].find(p => p.alias && p.alias.includes(command));
             
-            // --- BOT MAIN SWITCH LOGIC ---
             if (config.BOT_OFF === "true" && !isOwner) return;
 
             if (plugin) {
@@ -297,5 +277,23 @@ async function startPopkid() {
     }, 60000);
 }
 
-app.get("/", (req, res) => res.send("POPKID-MD MASTER ENGINE ACTIVE ⚡"));
+// ============ [ DYNAMIC ANTI-SLEEP ENGINE ] ============
+let selfUrl = "";
+
+app.get("/", (req, res) => {
+    // Automatically capture the URL on the first request
+    if (!selfUrl) selfUrl = `${req.protocol}://${req.get('host')}`;
+    res.send("POPKID-MD MASTER ENGINE ACTIVE ⚡");
+});
+
+setInterval(() => {
+    if (selfUrl) {
+        axios.get(selfUrl).then(() => {
+            console.log("⚡ Anti-Sleep: Ping successful.");
+        }).catch(() => {
+            console.log("⚠️ Anti-Sleep: Ping failed, but server active.");
+        });
+    }
+}, 300000); // 5 minutes
+
 app.listen(port, () => startPopkid());
