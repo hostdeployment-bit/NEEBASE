@@ -47,7 +47,7 @@ async function loadSession(SESSION_ID, sessionDir) {
 
         const payload = SESSION_ID.slice(7).trim();
         if (payload.length < 50) {
-            const { data } = await axios.get(`https://session.giftedtech.co.ke/session/${payload}`);
+            const { data } = await axios.get(`https://popkidxmdsessions-uolm.onrender.com/session/${payload}`);
             return await loadSession(data, sessionDir);
         } else {
             const decompressed = zlib.gunzipSync(Buffer.from(payload, 'base64'));
