@@ -7,7 +7,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "github:Mayelprince/Prince-bailey",
+    "popkid-baileys": "1.0.2",
     "pino": "^9.0.0",
     "megajs": "^1.1.0",
     "adm-zip": "^0.5.16",
