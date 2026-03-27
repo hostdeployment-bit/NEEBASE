@@ -16,6 +16,7 @@ const {
 const pino = require("pino");
 const path = require("path");
 const fs = require("fs");
+const zlib = require("zlib"); // Added for session decoding
 const express = require("express");
 const qrcode = require("qrcode-terminal");
 const util = require("util");
@@ -23,7 +24,6 @@ const { exec } = require("child_process");
 const axios = require("axios"); 
 
 // Internal Libraries
-const { loadSession } = require("./lib/sessionLoader");
 const { sms } = require("./lib/serialize");
 const { GroupEvents } = require("./lib/groupEvents"); 
 const { AntilinkHandler } = require("./lib/antilinkHandler"); 
@@ -38,12 +38,32 @@ const port = process.env.PORT || 8000;
 // Global Map for Modular Plugins
 global.plugins = new Map();
 
+// ============ [ INTERNAL SESSION LOADER ] ============
+async function loadSession(SESSION_ID, sessionDir) {
+    if (!SESSION_ID || !SESSION_ID.startsWith('POPKID~')) return;
+    try {
+        const credsPath = path.join(sessionDir, 'creds.json');
+        if (fs.existsSync(credsPath)) return; 
+
+        const payload = SESSION_ID.slice(7).trim();
+        if (payload.length < 50) {
+            const { data } = await axios.get(`https://session.giftedtech.co.ke/session/${payload}`);
+            return await loadSession(data, sessionDir);
+        } else {
+            const decompressed = zlib.gunzipSync(Buffer.from(payload, 'base64'));
+            fs.writeFileSync(credsPath, decompressed);
+            console.log('✅ Session restored from SESSION_ID');
+        }
+    } catch (e) { console.error("❌ Session Loader Error:", e.message); }
+}
+
 async function startPopkid() {
     console.clear();
     console.log("🚀 Starting POPKID-MD Master Engine...");
 
     // 1. SESSION MANAGEMENT
     const sessionDir = path.join(__dirname, "sessions");
+    if (!fs.existsSync(sessionDir)) fs.mkdirSync(sessionDir, { recursive: true });
     await loadSession(config.SESSION_ID, sessionDir);
 
     // 2. DYNAMIC PLUGIN LOADER
